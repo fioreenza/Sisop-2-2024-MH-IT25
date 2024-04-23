@@ -174,6 +174,39 @@ Catat setiap penghapusan string yang dilakukan oleh program pada sebuah file ber
     
         return 0;
     }
+
+* Penjelasan
+
+  Fungsi formatTimestamp bertanggung jawab untuk memformat waktu saat ini ke dalam string dengan format
+  yang spesifik. Pertama, fungsi ini mendeklarasikan variabel now bertipe time_t untuk menyimpan waktu
+  saat ini. Kemudian, menggunakan fungsi time, waktu saat ini diambil dan disimpan dalam variabel now.
+
+  Langkah selanjutnya adalah menggunakan fungsi localtime untuk mengonversi waktu dalam format time_t
+  ke dalam struktur tm, yang menyimpan informasi seperti tahun, bulan, hari, jam, menit, dan detik
+  dalam waktu lokal. Hasil konversi ini disimpan dalam variabel tm_info.
+
+  Setelah mendapatkan informasi waktu dalam bentuk struktur tm, fungsi sprintf digunakan untuk
+  memformat string timestamp. Format string yang digunakan adalah "[%02d-%02d-%04d][%02d:%02d:%02d]",
+  yang menggambarkan urutan hari-bulan-tahun dan jam-menit-detik dengan mengambil nilai dari struktur
+  tm_info.
+  
+      void formatTimestamp(char *timestamp) {
+            time_t now;
+            struct tm *tm_info;
+            time(&now);
+            tm_info = localtime(&now);
+            
+            sprintf(timestamp, "[%02d-%02d-%04d][%02d:%02d:%02d]", 
+                    tm_info->tm_mday, tm_info->tm_mon + 1, tm_info->tm_year + 1900, 
+                    tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
+        }
+
+  Fungsi replaceString bertanggung jawab untuk melakukan pencarian dan penggantian string dalam suatu
+  string yang diberikan. Saat dipanggil, fungsi ini menerima beberapa parameter, termasuk string yang
+  akan diolah (str), string yang akan dicari dan digantikan (old), string pengganti (new), pointer ke
+  file log virus (logFile), dan pointer ke variabel boolean yang menandakan apakah penggantian telah
+  dilakukan (replacements).
+
 ### Kendala Pengerjaan Soal 1
 ### Screenshot Hasil Pengerjaan Soal 1
 
