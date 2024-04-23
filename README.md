@@ -20,15 +20,16 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
 ## Soal 1
 **oleh Fiorenza Adelia Nalle (5027231053)**
 ### Deskripsi Soal 1
-Gavriel adalah seorang cyber security enthusiast. Suatu hari, ia dikontrak oleh sebuah perusahaan ternama untuk membuat sebuah program yang cukup rumit dengan bayaran jutaan rupiah. Karena tergoda dengan nominal bayaran tersebut, Gavriel langsung menerima tawaran tersebut. Setelah mencoba membuat dan mengembangkan program tersebut selama seminggu, laptop yang digunakan Gavriel mengalami overheat dan mati total sehingga harus dilarikan ke tukang servis terdekat. Karena keterbatasan waktu dalam pembuatan program dan tidak ingin mengecewakan perusahaan, Gavriel meminta bantuan kalian untuk membuat program tersebut dengan ketentuan sebagai berikut:
-Program dapat menerima input path berupa ‘argv’ untuk mengatur folder dimana file akan dieksekusi
-Program tersebut berfungsi untuk mereplace string dengan ketentuan sebagai berikut:
-String m4LwAr3 direplace dengan string [MALWARE]
-String 5pYw4R3 direplace dengan string [SPYWARE]
-String R4nS0mWaR3 direplace dengan string [RANSOMWARE]
-Program harus berjalan secara daemon, dan tidak diperbolehkan menggunakan command system() dalam pembuatan program
-Program akan secara terus menerus berjalan di background dengan jeda 15 detik
-Catat setiap penghapusan string yang dilakukan oleh program pada sebuah file bernama virus.log dengan format: [dd-mm-YYYY][HH:MM:SS] Suspicious string at <file_name> successfully replaced!
+1. Gavriel adalah seorang cyber security enthusiast. Suatu hari, ia dikontrak oleh sebuah perusahaan ternama untuk membuat sebuah program yang cukup rumit dengan bayaran jutaan rupiah. Karena tergoda dengan nominal bayaran tersebut, Gavriel langsung menerima tawaran tersebut. Setelah mencoba membuat dan mengembangkan program tersebut selama seminggu, laptop yang digunakan Gavriel mengalami overheat dan mati total sehingga harus dilarikan ke tukang servis terdekat. Karena keterbatasan waktu dalam pembuatan program dan tidak ingin mengecewakan perusahaan, Gavriel meminta bantuan kalian untuk membuat program tersebut dengan ketentuan sebagai berikut:
+    1. Program dapat menerima input path berupa ‘argv’ untuk mengatur folder dimana file akan dieksekusi
+    2. Program tersebut berfungsi untuk mereplace string dengan ketentuan sebagai berikut:
+       * String m4LwAr3 direplace dengan string [MALWARE]
+       * String 5pYw4R3 direplace dengan string [SPYWARE]
+       * String R4nS0mWaR3 direplace dengan string [RANSOMWARE]
+    3. Program harus berjalan secara daemon, dan tidak diperbolehkan menggunakan command system() dalam pembuatan program
+    4. Program akan secara terus menerus berjalan di background dengan jeda 15 detik
+    5. Catat setiap penghapusan string yang dilakukan oleh program pada sebuah file bernama virus.log dengan format: [dd-mm-YYYY][HH:MM:SS] Suspicious string at <file_name> successfully replaced!
+
 ### Penyelesaian Soal 1
     #include <stdio.h>
     #include <stdlib.h>
@@ -446,28 +447,31 @@ Catat setiap penghapusan string yang dilakukan oleh program pada sebuah file ber
 ## Soal 4
 **oleh Fiorenza Adelia Nalle (5027231053)**
 ### Deskripsi Soal 4
-Salomo memiliki passion yang sangat dalam di bidang sistem operasi. Saat ini, dia ingin mengotomasi kegiatan-kegiatan yang ia lakukan agar dapat bekerja secara efisien. Bantulah Salomo untuk membuat program yang dapat mengotomasi kegiatan dia!
-(NB: Soal di uji coba dan berhasil di sistem yang menggunakan MacOS dan linux yang menggunakan dual boot dan VM. Untuk teman-teman yang menggunakan WSL bisa mengerjakan soal yang lain ya)
-Salomo ingin dapat membuka berbagai macam aplikasi dengan banyak jendela aplikasi dalam satu command. Namai file program tersebut setup.c
-Program dapat membuka berbagai macam aplikasi dan banyak jendela aplikasi sekaligus (bisa membuka 1 atau lebih aplikasi dengan 1 atau lebih window (kecuali aplikasi yang tidak bisa dibuka dengan banyak window seperti discord)) dengan menjalankan: 
-./setup -o <app1> <num1> <app2> <num2>.....<appN> <numN>
-Contoh penggunaannya adalah sebagai berikut: 
-./setup -o firefox 2 wireshark 2
-Program akan membuka 2 jendela aplikasi firefox dan 2 jendela aplikasi wireshark.
-Program juga dapat membuka aplikasi dengan menggunakan file konfigurasi dengan menggunakan 
-./setup -f file.conf 
-Format file konfigurasi dibebaskan, namun pastikan dapat menjalankan fitur dari poin 2.
-Contoh isi file.conf:
-Firefox 2
-Wireshark 3
-Ketika menjalankan command contoh, program akan membuka 2 jendela aplikasi firefox dan 3 jendela aplikasi wireshark.
-Program dapat mematikan semua aplikasi yg dijalankan oleh program tersebut dengan: 
-./setup -k
-Program juga dapat mematikan aplikasi yang dijalankan sesuai dengan file konfigurasi. 
-Contohnya: 
-./setup -k file.conf 
-Command ini hanya mematikan aplikasi yang dijalankan dengan 
-./setup -f file.conf
+4. Salomo memiliki passion yang sangat dalam di bidang sistem operasi. Saat ini, dia ingin mengotomasi kegiatan-kegiatan yang ia lakukan agar dapat bekerja secara efisien. Bantulah Salomo untuk membuat program yang dapat mengotomasi kegiatan dia! (NB: Soal di uji coba dan berhasil di sistem yang menggunakan MacOS dan linux yang menggunakan dual boot dan VM. Untuk teman-teman yang menggunakan WSL bisa mengerjakan soal yang lain ya)
+    1. Salomo ingin dapat membuka berbagai macam aplikasi dengan banyak jendela aplikasi dalam satu
+       command. Namai file program tersebut setup.c
+    2. Program dapat membuka berbagai macam aplikasi dan banyak jendela aplikasi sekaligus (bisa
+       membuka 1 atau lebih aplikasi dengan 1 atau lebih window (kecuali aplikasi yang tidak bisa
+       dibuka dengan banyak window seperti discord)) dengan menjalankan:
+       ./setup -o <app1> <num1> <app2> <num2>.....<appN> <numN>
+       Contoh penggunaannya adalah sebagai berikut:
+       ./setup -o firefox 2 wireshark 2 Program akan membuka 2 jendela aplikasi firefox dan 2 jendela
+       aplikasi wireshark.
+    3. Program juga dapat membuka aplikasi dengan menggunakan file konfigurasi dengan menggunakan
+       ./setup -f file.conf
+       Format file konfigurasi dibebaskan, namun pastikan dapat menjalankan fitur dari poin 2.
+       Contoh isi file.conf:
+       Firefox 2
+       Wireshark 3
+       Ketika menjalankan command contoh, program akan membuka 2 jendela aplikasi firefox dan 3 jendela
+       aplikasi wireshark.
+    4. Program dapat mematikan semua aplikasi yg dijalankan oleh program tersebut dengan:  ./setup -k
+    5. Program juga dapat mematikan aplikasi yang dijalankan sesuai dengan file konfigurasi.
+       Contohnya:
+       ./setup -k file.conf
+       Command ini hanya mematikan aplikasi yang dijalankan dengan
+       ./setup -f file.conf
+
 
 ### Penyelesaian Soal 4
 
