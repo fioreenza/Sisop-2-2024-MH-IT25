@@ -656,6 +656,263 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
     
         return 0;
     }
+* Penjelasan
+
+        #define MAX_CHILDREN 100
+        #define FILENAME "file.txt"
+        #define OUTPUT_FILENAME "file.txt2"
+        #define MAX_FILE_LINE_LENGTH 100
+        #define MAX_APPS 100
+  Program menggunakan beberapa konstanta praprosesor untuk mengatur parameter-parameter penting. MAX_CHILDREN menentukan jumlah maksimum
+  proses anak yang dapat dibuat. FILENAME dan OUTPUT_FILENAME adalah nama file untuk menyimpan PID aplikasi dalam mode standar dan file.
+  MAX_FILE_LINE_LENGTH menentukan panjang maksimum setiap baris dalam file. Terakhir, MAX_APPS menentukan jumlah maksimum aplikasi yang
+  dapat disimpan dalam mode file. Konstanta-konstanta ini memudahkan penyesuaian dan meningkatkan keterbacaan program.
+
+        typedef struct {
+            char name[MAX_FILE_LINE_LENGTH];
+            int numWindows;
+        } App;
+  Struktur data ini, bernama App, digunakan untuk menyimpan informasi tentang sebuah aplikasi. Setiap App memiliki dua anggota data: name
+  yang merupakan array karakter untuk menyimpan nama aplikasi, dan numWindows yang merupakan bilangan bulat untuk menyimpan jumlah jendela
+  dari aplikasi tersebut yang akan dibuka. 
+
+        pid_t childPids[MAX_CHILDREN];
+        int numChildren = 0;
+  Array childPids digunakan untuk menyimpan PID (Process ID) dari setiap proses anak yang dibuat oleh program. Kapasitas arraynya
+  ditentukan oleh konstanta MAX_CHILDREN. Variabel numChildren digunakan untuk melacak jumlah proses anak yang telah dibuat. 
+
+        void openApplications(int argc, char *argv[]) {
+            FILE *file = fopen(FILENAME, "w");
+            if (file == NULL) {
+                perror("Error opening file");
+                exit(1);
+            }
+        
+            for (int i = 2; i < argc; i += 2) {
+                int numWindows = atoi(argv[i + 1]);
+        
+                for (int j = 0; j < numWindows; j++) {
+                    pid_t pid = fork();
+                    if (pid == -1) {
+                        perror("Error forking");
+                        exit(1);
+                    } else if (pid == 0) {
+                        if (execlp(argv[i], argv[i], NULL) == -1) {
+                            perror("Error executing application");
+                            exit(1);
+                        }
+                    } else {
+                        // Store child process ID in file
+                        fprintf(file, "%d\n", pid);
+                        fflush(file);
+                        childPids[numChildren++] = pid;
+                        printf("Child process created with PID: %d\n", pid);
+                    }
+                }
+            }
+        
+            fclose(file);
+        }
+  Fungsi openApplications berfungsi untuk membuka aplikasi-aplikasi yang diberikan sebagai argumen dalam mode "-o". Pertama-tama,
+  fungsi ini membuka file dengan nama yang telah ditentukan sebelumnya (FILENAME) untuk menulis PID (Process ID) dari setiap aplikasi yang
+  berhasil dibuka. Jika pembukaan file gagal, program akan menampilkan pesan kesalahan dan keluar dengan status error.
+
+  Selanjutnya, fungsi melakukan iterasi melalui argumen yang diberikan pada baris perintah, dimulai dari indeks 2 karena argumen 0 dan 1
+  biasanya berisi nama program dan opsi "-o". Untuk setiap aplikasi yang diberikan, fungsi membaca jumlah jendela yang harus dibuka dari
+  argumen berikutnya.
+
+  Selama iterasi, fungsi melakukan loop untuk membuat proses anak menggunakan fork(). Jika pembuatan proses anak gagal, fungsi akan
+  menampilkan pesan kesalahan dan keluar dengan status error. Jika proses berhasil dibuat, maka proses anak akan menjalankan aplikasi yang
+  sesuai dengan argumen yang diberikan menggunakan execlp(). Jika eksekusi aplikasi gagal, pesan kesalahan akan ditampilkan dan proses akan
+  keluar dengan status error.
+
+  Di sisi proses induk, fungsi menyimpan PID dari proses anak yang baru dibuat ke dalam file yang telah dibuka sebelumnya, kemudian
+  menyimpan PID tersebut juga dalam array childPids untuk referensi selanjutnya. Setelah selesai membuka semua aplikasi, fungsi menutup
+  file yang telah digunakan untuk menyimpan PID. Dengan demikian, fungsi ini bertanggung jawab untuk mengatur pembukaan aplikasi dan m
+  menyimpan informasi PID yang diperlukan.
+
+        void openAppsFromFile(const char *filename) {
+            FILE *file = fopen(filename, "r");
+            if (file == NULL) {
+                perror("Failed to open file");
+                return;
+            }
+        
+            App apps[MAX_APPS];
+            int numApps = 0;
+            char line[MAX_FILE_LINE_LENGTH];
+            while (fgets(line, sizeof(line), file)) {
+                if (sscanf(line, "%s %d", apps[numApps].name, &apps[numApps].numWindows) == 2) {
+                    numApps++;
+                }
+            }
+        
+            fclose(file);
+        
+            FILE *outputFile = fopen(OUTPUT_FILENAME, "w");
+            if (outputFile == NULL) {
+                perror("Failed to open output file");
+                return;
+            }
+        
+            for (int i = 0; i < numApps; i++) {
+                for (int j = 0; j < apps[i].numWindows; j++) {
+                    pid_t pid = fork();
+                    if (pid == -1) {
+                        perror("Error forking");
+                        exit(1);
+                    } else if (pid == 0) {
+                        if (execlp(apps[i].name, apps[i].name, NULL) == -1) {
+                            perror("Error executing application");
+                            exit(1);
+                        }
+                    } else {
+                        fprintf(outputFile, "%d\n", pid); // Write PID to file.txt2
+                        fflush(outputFile);
+                        printf("Child process created with PID: %d\n", pid);
+                    }
+                }
+            }
+        
+            fclose(outputFile);
+        }
+  Fungsi openAppsFromFile bertugas membuka aplikasi-aplikasi yang telah ditentukan dalam sebuah file yang ditentukan pula. Pertama,
+  fungsi membuka file dengan mode baca ("r") untuk membaca setiap baris dari file konfigurasi. Jika pembukaan file gagal, fungsi
+  menampilkan pesan kesalahan dan langsung kembali.
+    
+  Selanjutnya, fungsi membaca baris-baris dari file tersebut. Fungsi akan membaca nama aplikasi dan jumlah jendela dari baris tersebut.
+  Informasi tersebut disimpan dalam array apps. Setelah selesai membaca semua aplikasi dari file, fungsi menutup file yang telah digunakan.
+  Kemudian, fungsi membuka file output (OUTPUT_FILENAME) dengan mode tulis ("w") untuk menyimpan PID dari setiap proses anak yang berhasil
+  dibuat. Jika pembukaan file gagal, fungsi menampilkan pesan kesalahan dan langsung kembali.
+    
+  Setelah itu, fungsi melakukan loop untuk membuat proses anak untuk setiap aplikasi yang telah dibaca. Setiap proses anak akan
+  dijalankan sesuai dengan nama aplikasi yang sesuai dengan informasi yang telah dibaca. PID dari setiap proses anak yang berhasil dibuat
+  akan ditulis ke dalam file output (OUTPUT_FILENAME).
+
+        void killApplications() {
+            FILE *file = fopen(FILENAME, "r");
+            if (file == NULL) {
+                perror("Error opening file");
+                exit(1);
+            }
+        
+            pid_t pid;
+            while (fscanf(file, "%d", &pid) != EOF) {
+                printf("Killing process with PID: %d\n", pid);
+                if (kill(pid, SIGKILL) == -1) {
+                    perror("Error killing process");
+                }
+            }
+            fclose(file);
+        
+            FILE *outputFile = fopen(OUTPUT_FILENAME, "r");
+            if (outputFile == NULL) {
+                perror("Error opening output file");
+                exit(1);
+            }
+        
+            while (fscanf(outputFile, "%d", &pid) != EOF) {
+                printf("Killing process with PID: %d\n", pid);
+                if (kill(pid, SIGKILL) == -1) {
+                    perror("Error killing process");
+                }
+            }
+            fclose(outputFile);
+        }
+  Fungsi killApplications bertugas untuk menghentikan semua aplikasi yang sedang berjalan. Pertama, fungsi membuka file dengan nama yang
+  telah ditentukan sebelumnya (FILENAME) untuk membaca PID (Process ID) dari setiap aplikasi yang sedang berjalan. Jika pembukaan file
+  gagal, fungsi menampilkan pesan kesalahan dan keluar dengan status error.
+
+  Selanjutnya, fungsi membaca PID dari setiap aplikasi yang sedang berjalan dari file tersebut menggunakan fscanf, dan kemudian
+  menggunakan fungsi kill untuk mengirim sinyal SIGKILL kepada setiap aplikasi yang diidentifikasi. Jika pembunuhan aplikasi gagal, fungsi
+  menampilkan pesan kesalahan.
+
+  Setelah semua aplikasi yang terdaftar dalam file utama (FILENAME) telah dihentikan, fungsi membuka file dengan nama yang telah
+  ditentukan sebelumnya untuk menyimpan PID aplikasi dari mode file (OUTPUT_FILENAME). Kemudian, proses yang sama diulangi untuk file ini,
+  menghentikan setiap aplikasi yang terdaftar di dalamnya.
+
+        void killApplicationsFromFile() {
+            FILE *file = fopen(OUTPUT_FILENAME, "r");
+            if (file == NULL) {
+                perror("Error opening file");
+                exit(1);
+            }
+        
+            pid_t pid;
+            while (fscanf(file, "%d", &pid) != EOF) {
+                printf("Killing process with PID: %d\n", pid);
+                if (kill(pid, SIGKILL) == -1) {
+                    perror("Error killing process");
+                }
+            }
+            fclose(file);
+        }
+  Fungsi killApplicationsFromFile bertujuan untuk menghentikan semua aplikasi yang dijalankan oleh command -f file.conf. Pertama, fungsi
+  membuka file (OUTPUT_FILENAME) diberikan dalam mode baca ("r") untuk membaca PID dari setiap aplikasi yang harus dihentikan. Jika
+  pembukaan file gagal, fungsi menampilkan pesan kesalahan dan keluar dengan status error.
+
+  Selanjutnya, fungsi membaca PID dari setiap aplikasi yang sedang berjalan dari file tersebut menggunakan fscanf, dan kemudian
+  menggunakan fungsi kill untuk mengirim sinyal SIGKILL kepada setiap aplikasi yang diidentifikasi. Jika pembunuhan aplikasi gagal, fungsi
+  menampilkan pesan kesalahan. Setelah semua aplikasi yang terdaftar dalam file tersebut telah dihentikan, fungsi menutup file yang telah
+  digunakan untuk membaca PID aplikasi.
+
+        int main(int argc, char *argv[]) {
+            if (argc == 3 && strcmp(argv[1], "-k") == 0) {
+                killApplicationsFromFile(argv[2]);
+                return 0;
+            }
+        
+            if (argc == 2 && strcmp(argv[1], "-k") == 0) {
+                killApplications();
+                return 0;
+            }
+        
+            if (argc == 3 && strcmp(argv[1], "-f") == 0) {
+                openAppsFromFile(argv[2]);
+                return 0;
+            }
+        
+            if (argc % 2 != 0 || argc < 3) {
+                printf("Usage: %s -o <app1> <num1> <app2> <num2> ... <appN> <numN>\n", argv[0]);
+                printf("Or: %s -f <filename>\n", argv[0]);
+                printf("Or: %s -k <filename>\n", argv[0]);
+                return 1;
+            }
+        
+            if (strcmp(argv[1], "-o") != 0 && strcmp(argv[1], "-k") != 0) {
+                printf("Invalid option. Please use -o to specify applications or -k to kill all.\n");
+                return 1;
+            }
+        
+            openApplications(argc, argv);
+        
+            return 0;
+    }
+
+
+  Fungsi utama dari program ini bertanggung jawab untuk mengatur jalannya program berdasarkan argumen yang diberikan pada baris perintah
+  saat menjalankan program. Pertama, fungsi memeriksa argumen yang diberikan untuk menentukan tindakan yang harus dilakukan.
+
+  Jika argumen berjumlah 3 dan argumen pertama adalah "-k", maka program akan menggunakan mode "-k" untuk menghentikan semua aplikasi yang
+  sedang berjalan berdasarkan informasi yang disimpan dalam file yang ditentukan dalam argumen kedua. Ini dicapai dengan memanggil fungsi
+  killApplicationsFromFile.
+
+  Jika argumen berjumlah 2 dan argumen pertama adalah "-k", maka program juga akan menggunakan mode "-k", tetapi untuk menghentikan semua
+  aplikasi yang sedang berjalan berdasarkan informasi yang disimpan dalam file default. Ini dilakukan dengan memanggil fungsi
+  killApplications.
+
+  Jika argumen berjumlah 3 dan argumen pertama adalah "-f", maka program akan menggunakan mode "-f" untuk membuka dan menjalankan aplikasi-
+  aplikasi yang terdaftar dalam file yang ditentukan dalam argumen kedua. Ini dicapai dengan memanggil fungsi openAppsFromFile.
+
+  Selanjutnya, program memeriksa kesalahan pada argumen baris perintah. Jika jumlah argumen ganjil atau kurang dari 3, program akan
+  mencetak pesan tentang cara penggunaan yang benar dan mengembalikan status error.
+
+  Jika argumen tidak sesuai dengan opsi yang valid ("-o" untuk menjalankan aplikasi, "-k" untuk menghentikan aplikasi), program
+  akan mencetak pesan kesalahan dan mengembalikan status error.
+
+  Terakhir, fungsi openApplications(argc, argv) akan dipanggil setelah semua kondisi telah dinilai. Ini berarti bahwa jika tidak ada
+  argumen atau opsi yang sesuai dengan kasus yang diuji sebelumnya, fungsi openApplications akan dieksekusi sebagai jalur standar dalam
+  program.
 
 ### Kendala Pengerjaan Soal 4
 ### Screenshot Hasil Pengerjaan Soal 4
