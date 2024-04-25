@@ -1095,7 +1095,10 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
             return 1;
         }
     
-        pid_t pid = fork();
+        pid_t pid ;
+        
+        pid = fork();
+        
         if (pid < 0) {
             perror("Error forking");
             exit(EXIT_FAILURE);
@@ -1106,7 +1109,9 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
         }
     
         umask(0);
-    
+
+        sid = setsid();
+        
         if (setsid() < 0) {
             perror("Error creating new session");
             exit(EXIT_FAILURE);
