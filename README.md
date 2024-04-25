@@ -1076,33 +1076,6 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
     }
     
     int main(int argc, char *argv[]) {
-        if (argc == 3 && strcmp(argv[1], "-k") == 0) {
-            killApplicationsFromFile(argv[2]);
-            return 0;
-        }
-    
-        if (argc == 2 && strcmp(argv[1], "-k") == 0) {
-            killApplications();
-            return 0;
-        }
-    
-        if (argc == 3 && strcmp(argv[1], "-f") == 0) {
-            openAppsFromFile(argv[2]);
-            return 0;
-        }
-    
-        if (argc % 2 != 0 || argc < 3) {
-            printf("Usage: %s -o <app1> <num1> <app2> <num2> ... <appN> <numN>\n", argv[0]);
-            printf("Or: %s -f <filename>\n", argv[0]);
-            printf("Or: %s -k <filename>\n", argv[0]);
-            return 1;
-        }
-    
-        if (strcmp(argv[1], "-o") != 0 && strcmp(argv[1], "-k") != 0) {
-            printf("Invalid option. Please use -o to specify applications or -k to kill all.\n");
-            return 1;
-        }
-    
         pid_t pid ;
         
         pid = fork();
@@ -1131,6 +1104,33 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
         open("/dev/null", O_RDONLY);
         open("/dev/null", O_WRONLY);
         open("/dev/null", O_WRONLY);
+        
+        if (argc == 3 && strcmp(argv[1], "-k") == 0) {
+            killApplicationsFromFile(argv[2]);
+            return 0;
+        }
+    
+        if (argc == 2 && strcmp(argv[1], "-k") == 0) {
+            killApplications();
+            return 0;
+        }
+    
+        if (argc == 3 && strcmp(argv[1], "-f") == 0) {
+            openAppsFromFile(argv[2]);
+            return 0;
+        }
+    
+        if (argc % 2 != 0 || argc < 3) {
+            printf("Usage: %s -o <app1> <num1> <app2> <num2> ... <appN> <numN>\n", argv[0]);
+            printf("Or: %s -f <filename>\n", argv[0]);
+            printf("Or: %s -k <filename>\n", argv[0]);
+            return 1;
+        }
+    
+        if (strcmp(argv[1], "-o") != 0 && strcmp(argv[1], "-k") != 0) {
+            printf("Invalid option. Please use -o to specify applications or -k to kill all.\n");
+            return 1;
+        }
     
         openApplications(argc, argv);
     
