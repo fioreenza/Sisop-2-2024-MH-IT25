@@ -1140,7 +1140,7 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
 * Penjelasan
 
   Program tidak berjalan secara daemon, untuk mengubah program menjadi sebuah daemon, code direvisi menjadi yang tertera di atas. Terdapat
-  penambahan di bagian int main sebagai berikut :
+  penambahan di awal bagian int main sebagai berikut :
 
         pid_t pid = fork();
         if (pid < 0) {
@@ -1182,5 +1182,22 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
   masing-masing file descriptor menggunakan fungsi open(). Hal ini dilakukan untuk memisahkan proses dari terminal dan mengarahkannya ke /dev/null
   agar proses dapat berjalan di background secara independen tanpa mempengaruhi terminal.
     
-
 ### Screenshot Hasil Pengerjaan Soal 4
+* Compile program setup.c menggunakan command gcc
+  
+  <img width="710" alt="Screenshot 2024-04-25 at 22 17 09" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/7eed5ab1-decd-4fc6-87ec-97d2e80f9291">
+* Jalankan command setup -o untuk membuka aplikasi yang diinginkan dan sesuai jumlah windows yang diinginkan
+  
+  <img width="694" alt="Screenshot 2024-04-25 at 22 17 22" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/155f91d8-eeb9-44bf-af73-9c9acbac3141">
+* Jalankan command setup -f file.conf untuk membuka aplikasi yang diinginkan dan jumlah windows yang telah tertulis di file.conf
+  
+  <img width="794" alt="Screenshot 2024-04-25 at 22 19 09" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/a4399a80-eabc-46f3-9b8e-96a627b1bbda">
+* Jalankan command setup -k untuk menutup semua windows dari aplikasi yang dibuka melalui setup -o ataupun melalui setup -f file.conf
+  
+  <img width="788" alt="Screenshot 2024-04-25 at 22 19 22" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/d6219d28-1d17-49cf-84b0-8bbb8eedd798">
+* Buka kembali aplikasi melalui setup -o dan setup -f file.conf
+  
+  <img width="788" alt="Screenshot 2024-04-25 at 22 19 49" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/587d3146-3a65-4a1b-bb17-fefda0fb13cd">
+* Lalu jalankan command setup -k file.conf untuk menutup aplikasi yang dibuka melalui setup -f file.conf saja. Disini terlihat hanya 2 windows wireshark dan 2 windows firefox yang tertutup (sesuai dengan aplikasi dan jumlah windows yang tertulis di file.conf)
+  
+  <img width="792" alt="Screenshot 2024-04-25 at 22 19 59" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/56bb8c33-c21d-4fbe-a405-71e1757e1fd6">
