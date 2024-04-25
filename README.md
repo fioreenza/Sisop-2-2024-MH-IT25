@@ -425,10 +425,18 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
   selesai dengan sukses. Ini adalah langkah terakhir dari program dan menunjukkan bahwa semua tugas
   telah diselesaikan dengan baik.
 
-
 ### Kendala Pengerjaan Soal 1
-### Screenshot Hasil Pengerjaan Soal 1
+  Tidak ada kendala dalam pengerjaan nomor 1.
 
+### Screenshot Hasil Pengerjaan Soal 1
+* Masuk ke direktori yang berisi file txt yang ingin direplace stringnya
+  <img width="595" alt="Screenshot 2024-04-25 at 18 23 12" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/77be6988-f9e7-4dd6-b6d2-4bf74bd748d7">
+* Menjalankan program virus dengan compile terlebih dahulu lalu dilanjutkan dengan command ./virus
+  <img width="529" alt="Screenshot 2024-04-25 at 18 44 41" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/de59d370-c199-4609-aecf-f8dd0060da9d">
+* Masuk kembali ke direktori yang berisi file txt untuk mengecek apakah stringnya sudah direplace atau belum
+  <img width="714" alt="Screenshot 2024-04-25 at 18 31 32" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/5298cce6-3bfb-430d-9aea-e3b16a61afdb">
+* Lalu mengecek virus.log untuk memastikan string diganti tiap 15 detik
+  <img width="691" alt="Screenshot 2024-04-25 at 18 42 56" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/151eaff4-9729-4e52-9978-87a32add94ba">
 
 ## Soal 2
 **oleh Tio Axellino Irin (5027231065)**
