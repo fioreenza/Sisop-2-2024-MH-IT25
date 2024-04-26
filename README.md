@@ -448,8 +448,447 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
 ## Soal 3
 **Wira Samudra Siregar (5027231041)**
 ### Deskripsi Soal 3
-### Penyelesaian Soal 3
+3. Pak Heze adalah seorang admin yang baik. Beliau ingin membuat sebuah program admin yang dapat memantau para pengguna sistemnya. Bantulah Pak Heze untuk membuat program  tersebut!
+   1. Nama program tersebut dengan nama admin.c
+   2. Program tersebut memiliki fitur menampilkan seluruh proses yang dilakukan oleh seorang user dengan menggunakan command:./admin <user>
+   3. Program dapat memantau proses apa saja yang dilakukan oleh user. Fitur ini membuat program berjalan secara daemon dan berjalan terus menerus. Untuk menjalankan fitur ini menggunakan command: ./admin -m <user>
+   Dan untuk mematikan fitur tersebut menggunakan: ./admin -s <user>
+   Program akan mencatat seluruh proses yang dijalankan oleh user di file <user>.log dengan format:[dd:mm:yyyy]-[hh:mm:ss]_pid-process_nama-process_GAGAL/JALAN
+   4.Program dapat menggagalkan proses yang dijalankan user setiap detik secara terus menerus dengan menjalankan: ./admin -c user
+   sehingga user tidak bisa menjalankan proses yang dia inginkan dengan baik. Fitur ini dapat dimatikan dengan command: ./admin -a user
+   5. Ketika proses yang dijalankan user digagalkan, program juga akan melog dan menset log tersebut sebagai GAGAL. Dan jika di log menggunakan fitur poin c, log akan ditulis dengan JALAN
+
+### Penyelesaian Soal 3 
+    
+    #include <stdio.h>
+    #include <string.h>
+    #include <unistd.h>
+    #include <sys/types.h>
+    #include <sys/wait.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <signal.h>
+    #include <fcntl.h>
+    #include <dirent.h>
+
+    void showProcesses(char *user) {
+
+    char *args[] = {"ps", "-u", user, NULL};
+    pid_t pid = fork();
+    
+    if (pid == 0) {
+        execvp("ps", args);
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        perror("fork");
+    } else {
+        int status;
+        waitpid(pid, &status, 0);
+    }
+    }
+
+    void daemonProcess(char *user) {
+    pid_t pid, sid;
+    pid = fork();
+
+    if (pid < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {
+        exit(EXIT_SUCCESS);
+    }
+
+    sigmask(0);
+    sid = setsid();
+
+    if (sid < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    char logfile[100];
+    sprintf(logfile, "%s.log", user);
+    int log_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0644);
+
+    while (1) {
+        char *args[] = {"ps", "-u", user, NULL};
+        pid_t pid = fork();
+
+        if (pid == 0) {
+            int fd = open("/dev/null", O_RDWR);
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+            close(fd);
+            execvp("ps", args);
+            exit(EXIT_FAILURE);
+        } else if (pid < 0) {
+            perror("fork");
+        } else {
+            int status;
+            waitpid(pid, &status, 0);
+
+            time_t rawtime;
+            struct tm * timeinfo;
+            time(&rawtime);
+            timeinfo = localtime(&rawtime);
+            char timestamp[20];
+            strftime(timestamp, sizeof(timestamp), "%d:%m:%Y-%H:%M:%S", timeinfo);
+
+            char log_entry[256];
+            sprintf(log_entry, "[%s]-%d-%s_%s\n", timestamp, pid, args[2], (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? "JALAN" : "GAGAL");
+            write(log_fd, log_entry, strlen(log_entry));
+        }
+
+        sleep(1);
+    }
+
+    close(log_fd);
+    }
+
+
+    char *allowedProcesses[] = {"init", "systemd", "bash", "pkill", NULL}; // Daftar proses yang diizinkan
+
+    void killUserProcessesContinuously(char *user) {
+    pid_t pid;
+    
+    while (1) {
+        char *args[] = {"pgrep", "-u", user, NULL};
+        FILE *pipe = popen("pgrep -u user | awk '{print $1}'", "r");
+        char pid_str[10];
+        
+        while (fgets(pid_str, sizeof(pid_str), pipe) != NULL) {
+            pid_t pid = atoi(pid_str);
+            char cmd[256];
+            sprintf(cmd, "ps -p %d -o cmd= | tr -d ' '", pid);
+            FILE *cmd_pipe = popen(cmd, "r");
+            char process_name[256];
+            fgets(process_name, sizeof(process_name), cmd_pipe);
+            pclose(cmd_pipe);
+            
+            int allowed = 0;
+            for (int i = 0; allowedProcesses[i] != NULL; i++) {
+                if (strcmp(process_name, allowedProcesses[i]) == 0) {
+                    allowed = 1;
+                    break;
+                }
+            }
+            
+            if (!allowed) {
+                kill(pid, SIGKILL);
+            }
+        }
+        
+        pclose(pipe);
+        sleep(1);
+    }
+    }
+
+    void stopKillUserProcessesContinuously(char *user) {
+    char *args[] = {"pgrep", "-f", "killUserProcessesContinuously", user, NULL};
+    FILE *pipe = popen("pgrep -f 'killUserProcessesContinuously USER'", "r");
+    char pid_str[10];
+
+    while (fgets(pid_str, sizeof(pid_str), pipe) != NULL) {
+        pid_t pid = atoi(pid_str);
+        kill(pid, SIGKILL);
+    }
+
+    pclose(pipe);
+    }
+
+    void stopKillUserProcesses(char *user) {
+    stopKillUserProcessesContinuously(user);
+
+    char *args[] = {"pkill", "-U", user, "-f", "pkill", NULL};
+    pid_t pid = fork();
+    if (pid == 0) {
+        execvp("pkill", args);
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        perror("fork");
+    } else {
+        int status;
+        waitpid(pid, &status, 0);
+    }
+    }
+
+    int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <option> <user>\n", argv[0]);
+        return 1;
+    }
+
+    char *user = argv[2];
+
+    if (strcmp(argv[1], "-m") == 0) {
+        daemonProcess(user);
+    } else if (strcmp(argv[1], "-s") == 0) {
+        // Implementasi untuk mematikan daemon process
+    } else if (strcmp(argv[1], "-c") == 0) {
+        killUserProcessesContinuously(user);
+    } else if (strcmp(argv[1], "-a") == 0) {
+        stopKillUserProcesses(user);
+    } else if (argc == 2) {
+        showProcesses(user);
+    } else {
+        printf("Invalid option\n");
+        return 1;
+    }
+
+    return 0;
+    }
+### Penjelasan
+    void showProcesses(char *user) {
+
+    char *args[] = {"ps", "-u", user, NULL};
+    pid_t pid = fork();
+    
+    if (pid == 0) {
+        execvp("ps", args);
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        perror("fork");
+    } else {
+        int status;
+        waitpid(pid, &status, 0);
+    }
+    }
+*Fungsi showProcesses(char user)
+
+Membuat array args yang berisi argumen untuk perintah ps -u user
+Melakukan fork untuk membuat proses baru.
+Jika fork berhasil dan merupakan proses anak, maka execvp("ps", args) akan dijalankan untuk menampilkan daftar proses.
+Jika fork gagal, akan menampilkan pesan error fork.
+Jika fork berhasil dan merupakan proses induk, maka akan menunggu proses anak selesai dengan waitpid.
+
+    void daemonProcess(char *user) {
+    pid_t pid, sid;
+    pid = fork();
+
+    if (pid < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {
+        exit(EXIT_SUCCESS);
+    }
+
+    sigmask(0);
+    sid = setsid();
+
+    if (sid < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    char logfile[100];
+    sprintf(logfile, "%s.log", user);
+    int log_fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0644);
+
+    while (1) {
+        char *args[] = {"ps", "-u", user, NULL};
+        pid_t pid = fork();
+
+        if (pid == 0) {
+            int fd = open("/dev/null", O_RDWR);
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+            close(fd);
+            execvp("ps", args);
+            exit(EXIT_FAILURE);
+        } else if (pid < 0) {
+            perror("fork");
+        } else {
+            int status;
+            waitpid(pid, &status, 0);
+
+            time_t rawtime;
+            struct tm * timeinfo;
+            time(&rawtime);
+            timeinfo = localtime(&rawtime);
+            char timestamp[20];
+            strftime(timestamp, sizeof(timestamp), "%d:%m:%Y-%H:%M:%S", timeinfo);
+
+            char log_entry[256];
+            sprintf(log_entry, "[%s]-%d-%s_%s\n", timestamp, pid, args[2], (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? "JALAN" : "GAGAL");
+            write(log_fd, log_entry, strlen(log_entry));
+        }
+
+        sleep(1);
+    }
+
+    close(log_fd);
+    }
+*Fungsi daemonProcess(char user)
+
+Melakukan fork untuk membuat proses baru.
+
+Jika merupakan proses anak, maka:
+
+Membuat session ID baru dengan setsid.
+Menutup STDIN, STDOUT, dan STDERR.
+Membuat file log dengan nama user.log dan membukanya untuk ditulis.
+
+
+Melakukan perulangan tak terhingga:
+
+Membuat array args yang berisi argumen untuk perintah ps -u user.
+Melakukan fork untuk membuat proses baru.
+Jika merupakan proses anak, maka execvp("ps", args) akan dijalankan dengan STDOUT dan STDERR diarahkan ke /dev/null.
+Jika fork gagal, akan menampilkan pesan error fork.
+Jika fork berhasil dan merupakan proses induk, maka akan menunggu proses anak selesai dengan waitpid.
+Mencatat hasil eksekusi ps ke dalam file log dengan format: [timestamp]-[pid]-[user]_(JALAN|GAGAL).
+Menunggu 1 detik sebelum melanjutkan perulangan.
+Menutup file log setelah keluar dari perulangan.
+
+    char *allowedProcesses[] = {"init", "systemd", "bash", "pkill", NULL};
+*Array allowedProcesses
+
+Array yang berisi nama-nama proses yang diizinkan untuk berjalan, seperti init, systemd, bash, dan pkill.
+
+    void killUserProcessesContinuously(char *user) {
+    pid_t pid;
+    
+    while (1) {
+        char *args[] = {"pgrep", "-u", user, NULL};
+        FILE *pipe = popen("pgrep -u user | awk '{print $1}'", "r");
+        char pid_str[10];
+        
+        while (fgets(pid_str, sizeof(pid_str), pipe) != NULL) {
+            pid_t pid = atoi(pid_str);
+            char cmd[256];
+            sprintf(cmd, "ps -p %d -o cmd= | tr -d ' '", pid);
+            FILE *cmd_pipe = popen(cmd, "r");
+            char process_name[256];
+            fgets(process_name, sizeof(process_name), cmd_pipe);
+            pclose(cmd_pipe);
+            
+            int allowed = 0;
+            for (int i = 0; allowedProcesses[i] != NULL; i++) {
+                if (strcmp(process_name, allowedProcesses[i]) == 0) {
+                    allowed = 1;
+                    break;
+                }
+            }
+            
+            if (!allowed) {
+                kill(pid, SIGKILL);
+            }
+        }
+        
+        pclose(pipe);
+        sleep(1);
+    }
+    }
+*Fungsi killUserProcessesContinuously(char user)
+
+Melakukan perulangan tak terhingga:
+
+Mendapatkan daftar PID proses yang sedang berjalan untuk pengguna tertentu dengan perintah pgrep -u user.
+
+Untuk setiap PID:
+
+Mendapatkan nama proses dengan perintah ps -p PID -o cmd=.
+Memeriksa apakah nama proses ada dalam daftar allowedProcesses.
+Jika tidak ada, maka membunuh proses tersebut dengan kill(pid, SIGKILL).
+Menunggu 1 detik sebelum melanjutkan perulangan.
+
+    void stopKillUserProcessesContinuously(char *user) {
+    char *args[] = {"pgrep", "-f", "killUserProcessesContinuously", user, NULL};
+    FILE *pipe = popen("pgrep -f 'killUserProcessesContinuously USER'", "r");
+    char pid_str[10];
+
+    while (fgets(pid_str, sizeof(pid_str), pipe) != NULL) {
+        pid_t pid = atoi(pid_str);
+        kill(pid, SIGKILL);
+    }
+
+    pclose(pipe);
+    }
+*Fungsi stopKillUserProcessesContinuously(char user)
+
+Mendapatkan daftar PID proses yang menjalankan killUserProcessesContinuously untuk pengguna tertentu dengan perintah pgrep -f 'killUserProcessesContinuously user'.
+Untuk setiap PID, membunuh proses tersebut dengan kill(pid, SIGKILL).
+
+    void stopKillUserProcesses(char *user) {
+    stopKillUserProcessesContinuously(user);
+
+    char *args[] = {"pkill", "-U", user, "-f", "pkill", NULL};
+    pid_t pid = fork();
+    if (pid == 0) {
+        execvp("pkill", args);
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        perror("fork");
+    } else {
+        int status;
+        waitpid(pid, &status, 0);
+    }
+    }
+*Fungsi stopKillUserProcesses(char user)
+
+Memanggil stopKillUserProcessesContinuously(user).
+Membuat array args yang berisi argumen untuk perintah pkill -U user -f pkill.
+Melakukan fork untuk membuat proses baru.
+Jika merupakan proses anak, maka execvp("pkill", args) akan dijalankan untuk membunuh semua proses pkill yang sedang berjalan untuk pengguna tertentu.
+Jika fork gagal, akan menampilkan pesan error fork.
+Jika fork berhasil dan merupakan proses induk, maka akan menunggu proses anak selesai dengan waitpid.
+
+    int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <option> <user>\n", argv[0]);
+        return 1;
+    }
+
+    char *user = argv[2];
+
+    if (strcmp(argv[1], "-m") == 0) {
+        daemonProcess(user);
+    } else if (strcmp(argv[1], "-s") == 0) {
+        // Implementasi untuk mematikan daemon process
+    } else if (strcmp(argv[1], "-c") == 0) {
+        killUserProcessesContinuously(user);
+    } else if (strcmp(argv[1], "-a") == 0) {
+        stopKillUserProcesses(user);
+    } else if (argc == 2) {
+        showProcesses(user);
+    } else {
+        printf("Invalid option\n");
+        return 1;
+    }
+
+    return 0;
+    }
+*Fungsi main(int argc, char argv[])
+
+Memeriksa jumlah argumen yang diberikan.
+Jika argumen tidak valid, akan menampilkan petunjuk penggunaan.
+Menyimpan nama pengguna dari argumen ketiga.
+
+
+Memeriksa opsi yang diberikan dari argumen kedua:
+
+Jika -m, maka memanggil daemonProcess(user).
+
+Jika -s, maka tidak ada implementasi (komentar menyatakan untuk mematikan daemon process).
+
+Jika -c, maka memanggil killUserProcessesContinuously(user).
+
+Jika -a, maka memanggil stopKillUserProcesses(user).
+
+Jika hanya ada satu argumen (nama program dan pengguna), maka memanggil showProcesses(user).
+
+Jika opsi tidak valid, akan menampilkan pesan error.
+
 ### Kendala Pengerjaan Soal 3
+
 ### Screenshot Hasil Pengerjaan Soal 3
 
 ## Soal 4
