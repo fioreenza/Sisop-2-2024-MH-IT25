@@ -877,7 +877,7 @@ Memeriksa opsi yang diberikan dari argumen kedua:
 
 Jika -m, maka memanggil daemonProcess(user).
 
-Jika -s, maka tidak ada implementasi (komentar menyatakan untuk mematikan daemon process).
+Jika -s, perintah untuk mematikan daemon process(user).
 
 Jika -c, maka memanggil killUserProcessesContinuously(user).
 
@@ -888,8 +888,60 @@ Jika hanya ada satu argumen (nama program dan pengguna), maka memanggil showProc
 Jika opsi tidak valid, akan menampilkan pesan error.
 
 ### Kendala Pengerjaan Soal 3
+    void killUserProcessesContinuously(char *user) {
+    pid_t pid;
+    
+    while (1) {
+        char *args[] = {"pgrep", "-u", user, NULL};
+        FILE *pipe = popen("pgrep -u user | awk '{print $1}'", "r");
+        char pid_str[10];
+        
+        while (fgets(pid_str, sizeof(pid_str), pipe) != NULL) {
+            pid_t pid = atoi(pid_str);
+            char cmd[256];
+            sprintf(cmd, "ps -p %d -o cmd= | tr -d ' '", pid);
+            FILE *cmd_pipe = popen(cmd, "r");
+            char process_name[256];
+            fgets(process_name, sizeof(process_name), cmd_pipe);
+            pclose(cmd_pipe);
+            
+            int allowed = 0;
+            for (int i = 0; allowedProcesses[i] != NULL; i++) {
+                if (strcmp(process_name, allowedProcesses[i]) == 0) {
+                    allowed = 1;
+                    break;
+                }
+            }
+            
+            if (!allowed) {
+                kill(pid, SIGKILL);
+            }
+        }
+        
+        pclose(pipe);
+        sleep(1);
+    }
+    }
+Pada program *Fungsi killUserProcessesContinuously() terdapat masalah saat menjalankan **sudo ./admin -c <user>** program tidak berhenti loop, bahkan saat sudah direvisi tetap tidak menemukan solusinya.
+
+### Screenshot Kendala Soal 3
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/145766477/4c3bc012-15f1-41e2-83f1-9db014c3ce0a)
 
 ### Screenshot Hasil Pengerjaan Soal 3
+* Memanggil sudo ./admin wsamudraa, maka memanggil showProcesses(user).
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/145766477/72a5ad3f-bc21-44fc-aadd-e212bfa1e77c)
+
+* Memanggil sudo ./admin -m wsamudraa, maka memanggil daemonProcess(user). lalu kita cek dengan px aux | grep admin
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/145766477/9ffe034c-c95e-43e1-87fb-2d280c0a175b).
+
+* Memanggil sudo ./admin -s wsamudraa,  perintah untuk mematikan daemon process(user). lalu kita cek <user>.log
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/145766477/cdbdacfc-d52c-4d13-b66b-e8579948d7c0).
+
+* Memanggil sudo ./admin -c wsamudraa, maka memanggil killUserProcessesContinuously(user). tetapi program ini mengalami kendala.
+![Screenshot 2024-04-27 184605](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/145766477/463a1c92-8e6e-4049-a837-b5e9e034d1c8).
+
+* Memanggil sudo ./admin -a wsamudraa,  maka memanggil stopKillUserProcesses(user). tetapi program ini tidak bekerja karena program killUserProcessesContinuously(user) mengalami kendala sehingga berdampak kepada program selanjutnya.
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/145766477/0b2da63e-fce5-4bde-ba7b-5bfd7247f9fd).
 
 ## Soal 4
 **oleh Fiorenza Adelia Nalle (5027231053)**
