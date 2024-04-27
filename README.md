@@ -439,10 +439,1279 @@ Pada Praktikum Modul 1 ini, kami diberikan tugas untuk mengerjakan Soal Shift Mo
   <img width="691" alt="Screenshot 2024-04-25 at 18 42 56" src="https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/147926732/151eaff4-9729-4e52-9978-87a32add94ba">
 
 ## Soal 2
+
 **oleh Tio Axellino Irin (5027231065)**
+
 ### Deskripsi Soal 2
+
+Paul adalah seorang mahasiswa semester 4 yang diterima magang di perusahaan XYZ. Pada hari pertama magang, ia diberi tugas oleh atasannya untuk membuat program manajemen file sederhana. Karena kurang terbiasa dengan bahasa C dan environment Linux, ia meminta bantuan kalian untuk mengembangkan program tersebut.
+
+a. Atasannya meminta agar program tersebut dapat berjalan secara daemon dan dapat mengunduh serta melakukan unzip terhadap file [berikut](https://drive.google.com/file/d/1rUIZmp10lXLtCIH3LAZJzRPeRks3Crup/view?usp=sharing). Atasannya juga meminta program ini dibuat **tanpa menggunakan command system()**
+
+b. Setelah ditelusuri, ternyata hanya 6 file teratas yang nama filenya tidak dienkripsi. Oleh karena itu, bantulah Paul untuk melakukan dekripsi terhadap nama file ke-7 hingga terakhir menggunakan algoritma ROT19
+
+c. Setelah dekripsi selesai, akan terlihat bahwa setiap file memuat salah satu dari kode berikut: **r3N4mE**, **d3Let3**, dan **m0V3**. Untuk setiap file dengan nama yang memuat kode **d3Let3**, hapus file tersebut. Sementara itu, untuk setiap file dengan nama yang memuat kode **r3N4mE**, lakukan hal berikut:
+
+* Jika ekstensi file adalah “.ts”, rename filenya menjadi “helper.ts”
+
+* Jika ekstensi file adalah “.py”, rename filenya menjadi “calculator.py”
+
+* Jika ekstensi file adalah “.go”, rename filenya menjadi “server.go”
+
+* Jika file tidak memuat salah satu dari ekstensi diatas, rename filenya menjadi “renamed.file”
+
+d. Atasan Paul juga meminta agar program ini dapat membackup dan merestore file. Oleh karena itu, bantulah Paul untuk membuat program ini menjadi 3 mode, yaitu:
+
+* `default`: program berjalan seperti biasa untuk me-rename dan menghapus file. Mode ini dieksekusi ketika program dijalankan tanpa argumen tambahan, yaitu dengan command **./management** saja
+
+* `backup`: program memindahkan file dengan kode **m0V3** ke sebuah folder bernama “backup”
+
+* `restore`: program mengembalikan file dengan kode **m0V3** ke folder sebelum file tersebut dipindahkan
+
+* Contoh penggunaan: ./management -m backup
+
+e. Terkadang, Paul perlu mengganti mode dari program ini tanpa menghentikannya terlebih dahulu. Oleh karena itu, bantulan Paul untuk mengintegrasikan kemampuan untuk mengganti mode ini dengan mengirim sinyal ke daemon, dengan ketentuan:
+
+* SIGRTMIN untuk mode `default`
+
+* SIGUSR1 untuk mode `backup`
+
+* SIGUSR2 untuk mode `restore`
+
+* Contoh penggunaan: kill -SIGUSR2 <pid_program>
+
+f. Program yang telah dibuat ini tidak mungkin akan dijalankan secara terus-menerus karena akan membebani sistem. Maka dari itu, bantulah Paul untuk membuat program ini dapat dimatikan dengan aman dan efisien
+
+g. Terakhir, program ini harus berjalan setiap detik dan mampu mencatat setiap peristiwa yang terjadi ke dalam file .log yang bernama “history.log” dengan ketentuan:
+
+* Format: **[nama_user][HH:MM:SS] - <nama_file> - <action>**
+
+* nama_user adalah username yang melakukan action terhadap file
+
+* Format `action` untuk setiap kode:
+
+    1. kode `r3N4mE`: Successfully renamed.
+
+    2. kode `d3Let3`: Successfully deleted.
+
+    3. mode `backup`: Successfully moved to backup.
+
+    4. mode `restore`: Successfully restored from backup.
+
+* Contoh pesan log:
+
+    [paul][00:00:00] - r3N4mE.ts - Successfully renamed.
+
+    [paul][00:00:00] - m0V3.xk1 - Successfully restored from backup.
+
+Berikut adalah struktur folder untuk pengerjaan nomor 2:
+
+    soal_2/
+    ├── history.log
+    ├── management.c
+    └── library/
+        └── backup/
+
 ### Penyelesaian Soal 2
+
+* **management.c**
+
+        #include <sys/types.h>
+        #include <sys/stat.h>
+        #include <sys/wait.h>
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <fcntl.h>
+        #include <errno.h>
+        #include <unistd.h>
+        #include <syslog.h>
+        #include <string.h>
+        #include <ctype.h>
+        #include <dirent.h>
+        #include <time.h>
+
+        volatile sig_atomic_t mode = 0;
+        volatile sig_atomic_t running = 1; // Flag to control program execution
+
+        void decryptFileName(char *fileName)
+        {
+            int i;
+            for (i = 0; fileName[i] != '\0'; ++i)
+            {
+                char ch = fileName[i];
+                if (ch >= 'A' && ch <= 'Z')
+                {
+                    fileName[i] = ((ch - 'A' + 7) % 26) + 'A';
+                }
+                else if (ch >= 'a' && ch <= 'z')
+                {
+                    fileName[i] = ((ch - 'a' + 7) % 26) + 'a';
+                }
+            }
+        }
+
+        void moveFile(const char *src, const char *dest)
+        {
+            // Check if source file exists
+            if (access(src, F_OK) != -1)
+            {
+                // Perform move operation
+                if (rename(src, dest) != 0)
+                {
+                    perror("Error moving file");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+        void createBackupDirectory()
+        {
+            struct stat st = {0};
+            if (stat("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup", &st) == -1)
+            {
+                if (mkdir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup", 0700) == -1)
+                {
+                    perror("Error creating backup directory");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+        void signalHandler(int signum)
+        {
+            if (signum == SIGRTMIN)
+            {
+                mode = 0;
+                // Set mode to default
+            }
+            else if (signum == SIGUSR1)
+            {
+                mode = 1;
+                // Set mode to backup
+            }
+            else if (signum == SIGUSR2)
+            {
+                mode = 2;
+                // Set mode to restore
+            }
+            else if (signum == SIGTERM || signum == SIGINT)
+            {
+                // SIGTERM or SIGINT received, stop program execution
+                running = 0;
+            }
+        }
+
+        void logEvent(const char *user, const char *file, const char *action)
+        {
+            // Buka file log untuk ditulis (mode "a" untuk menambahkan ke akhir file)
+            FILE *logfile = fopen("/home/ludwigd/SisOP/Praktikum2/nomor2/history.log", "a");
+            if (logfile == NULL)
+            {
+                // Jika gagal membuka file log, tampilkan pesan kesalahan dan keluar
+                perror("Failed to open log file");
+                exit(EXIT_FAILURE);
+            }
+
+            // Dapatkan waktu saat ini
+            time_t now;
+            time(&now);
+            struct tm *timeinfo = localtime(&now);
+
+            // Buat string waktu dalam format [HH:MM:SS]
+            char time_str[9];
+            strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);
+
+            // Tulis pesan log ke file
+            fprintf(logfile, "[%s][%s] - %s - %s\n", user, time_str, file, action);
+
+            // Tutup file log
+            fclose(logfile);
+        }
+
+        void usage()
+        {
+            printf("Usage: ./management [-m mode]\n");
+            printf("Modes:\n");
+            printf("  default : Run in default mode\n");
+            printf("  backup  : Run in backup mode\n");
+            printf("  restore : Run in restore mode\n");
+        }
+
+        int main(int argc, char *argv[]) {
+            // Signal handling
+            signal(SIGRTMIN, signalHandler);
+            signal(SIGUSR1, signalHandler);
+            signal(SIGUSR2, signalHandler);
+            signal(SIGTERM, signalHandler); // Handle SIGTERM (Termination signal)
+            signal(SIGINT, signalHandler);  // Handle SIGINT (Interrupt signal)
+
+            pid_t pid, sid;        // Variabel untuk menyimpan PID
+
+            pid = fork();     // Menyimpan PID dari Child Process
+
+            /* Keluar saat fork gagal
+            * (nilai variabel pid < 0) */
+            if (pid < 0) {
+                exit(EXIT_FAILURE);
+            }
+
+            /* Keluar saat fork berhasil
+            * (nilai variabel pid adalah PID dari child process) */
+            if (pid > 0) {
+                exit(EXIT_SUCCESS);
+            }
+
+            umask(0);
+
+            sid = setsid();
+            if (sid < 0) {
+                exit(EXIT_FAILURE);
+            }
+
+            if ((chdir("/")) < 0) {
+                exit(EXIT_FAILURE);
+            }
+
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
+            close(STDERR_FILENO);
+
+            // Check if mode is default (no command line arguments)
+            if (argc == 1)
+            {
+                mode = 0;
+            }
+            else if (argc == 2 && strcmp(argv[1], "-m") == 0)
+            {
+                // Mode specified in command line argument
+                // Set mode accordingly
+                if (strcmp(argv[2], "default") == 0)
+                {
+                    mode = 0;
+                }
+                else if (strcmp(argv[2], "backup") == 0)
+                {
+                    mode = 1;
+                }
+                else if (strcmp(argv[2], "restore") == 0)
+                {
+                    mode = 2;
+                }
+                else
+                {
+                    printf("Invalid mode specified\n");
+                    usage();
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else
+            {
+                printf("Invalid arguments\n");
+                usage();
+                exit(EXIT_FAILURE);
+            }
+            while (1)
+            {
+                if (mode == 0)
+                {
+                    pid_t child_pid = fork(); // Fork untuk menjalankan child process
+
+                    if (child_pid == 0)
+                    { // Child Process
+                    char *download_args[] = {"wget", "--quiet", "--no-check-certificate", "https://docs.google.com/uc?export=download&id=1rUIZmp10lXLtCIH3LAZJzRPeRks3Crup", "-O", "/home/ludwigd/SisOP/Praktikum2/nomor2/library.zip", NULL};
+                    execvp("wget", download_args); // Eksekusi command wget
+                    exit(EXIT_SUCCESS); // Keluar dari child process
+                    }
+                    else if
+                    (child_pid < 0) { // Fork gagal
+                    syslog(LOG_ERR, "Failed to fork child process for download");
+                    }
+                    else
+                    { // Parent Process
+                        int download_status;
+                        waitpid(child_pid, &download_status, 0); // Menunggu child process selesai
+                        if (WIFEXITED(download_status) && WEXITSTATUS(download_status) == 0)
+                        {
+                            syslog(LOG_INFO, "File downloaded successfully");
+                        }
+                        else
+                        {
+                            syslog(LOG_ERR, "Failed to download file");
+                        }
+
+                        // Unzip file
+                        pid_t unzip_child_pid = fork(); // Fork untuk menjalankan child process untuk unzip
+
+                        if (unzip_child_pid == 0)
+                        { // Child Process
+                            char *unzip_args[] = {"unzip", "-q", "/home/ludwigd/SisOP/Praktikum2/nomor2/library.zip", "-d", "/home/ludwigd/SisOP/Praktikum2/nomor2/", NULL};
+                            execvp("unzip", unzip_args); // Eksekusi command unzip
+                            exit(EXIT_SUCCESS); // Keluar dari child process
+                        }
+                        else if (unzip_child_pid < 0)
+                        { // Fork gagal
+                            syslog(LOG_ERR, "Failed to fork child process for unzip");
+                        }
+                        else
+                        { // Parent Process
+                            int unzip_status;
+                            waitpid(unzip_child_pid, &unzip_status, 0); // Menunggu child process selesai
+
+                            if (WIFEXITED(unzip_status) && WEXITSTATUS(unzip_status) == 0)
+                            {
+                            syslog(LOG_INFO, "File unzipped successfully");
+                            }
+                            else
+                            {
+                            syslog(LOG_ERR, "Failed to unzip file");
+                            }
+                            // Decrypt file names
+                            pid_t decrypt_child_pid = fork(); // Fork untuk menjalankan child process untuk dekripsi nama file
+
+                            if (decrypt_child_pid == 0)
+                            { // Child Process
+                            // Mendapatkan daftar file di direktori
+                            DIR *dir;
+                            struct dirent *ent;
+                            if ((dir = opendir ("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                            {
+                                while ((ent = readdir(dir)) != NULL)
+                                {
+                                // Hanya dekripsi nama file ke-7 hingga terakhir
+                                if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+                                {
+                                    continue;
+                                }
+                                if (isdigit(ent->d_name[0]))
+                                {
+                                    continue;
+                                }
+                                char old_name[256];
+                                char new_name[256];
+
+                                strcpy(old_name, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/");
+                                strcat(old_name, ent->d_name);
+
+                                decryptFileName(ent->d_name);
+
+                                strcpy(new_name, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/");
+                                strcat(new_name, ent->d_name);
+
+                                rename(old_name, new_name);
+                                }
+                                closedir (dir);
+                            }
+                            else
+                            {
+                                syslog(LOG_ERR, "Failed to open directory");
+                                exit(EXIT_FAILURE);
+                            }
+                            exit(EXIT_SUCCESS); // Keluar dari child process
+                            }
+
+                            else if (decrypt_child_pid < 0)
+                            { // Fork gagal
+                            syslog(LOG_ERR, "Failed to fork child process for decrypting file names");
+                            }
+                            else
+                            { // Parent Process
+                                int decrypt_status;
+                                waitpid(decrypt_child_pid, &decrypt_status, 0); // Menunggu child process selesai
+
+                                if (WIFEXITED(decrypt_status) && WEXITSTATUS(decrypt_status) == 0)
+                                {
+                                    syslog(LOG_INFO, "File names decrypted successfully");
+                                }
+                                else
+                                {
+                                    syslog(LOG_ERR, "Failed to decrypt file names");
+                                }
+                                            // Handle file dengan nama yang memuat kode r3N4mE
+                                            DIR *dir_r3N4mE;
+                                            struct dirent *ent_r3N4mE;
+                                            if ((dir_r3N4mE = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                                            {
+                                                while ((ent_r3N4mE = readdir(dir_r3N4mE)) != NULL)
+                                                {
+                                                    // Cek hanya file dengan kode r3N4mE
+                                                    char *filename = ent_r3N4mE->d_name;
+                                                    if (strstr(filename, "r3N4mE") != NULL)
+                                                    {
+                                                        char old_path[256];
+                                                        char new_path[256];
+                                                        strcpy(old_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/");
+                                                        strcat(old_path, ent_r3N4mE->d_name);
+
+                                                        char *ext = strrchr(ent_r3N4mE->d_name, '.'); // Mendapatkan ekstensi file
+                                                        if (ext == NULL)
+                                                        {
+                                                            // Jika tidak ada ekstensi, rename menjadi "renamed.file"
+                                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/renamed.file");
+                                                        }
+                                                        else if (strcmp(ext, ".ts") == 0)
+                                                        {
+                                                            // Jika ekstensi adalah ".ts", rename menjadi "helper.ts"
+                                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/helper.ts");
+                                                        }
+                                                        else if (strcmp(ext, ".py") == 0)
+                                                        {
+                                                            // Jika ekstensi adalah ".py", rename menjadi "calculator.py"
+                                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/calculator.py");
+                                                        }
+                                                        else if (strcmp(ext, ".go") == 0)
+                                                        {
+                                                            // Jika ekstensi adalah ".go", rename menjadi "server.go"
+                                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/server.go");
+                                                        }
+                                                        else
+                                                        {
+                                                            // Jika ekstensi tidak dikenali, rename menjadi "renamed.file"
+                                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/renamed.file");
+                                                        }
+
+                                                        // Rename file
+                                                        rename(old_path, new_path);
+                                                        logEvent("ludwigd", filename, "Successfully renamed");
+                                                    }
+                                                }
+                                                closedir(dir_r3N4mE);
+                                            }
+                                            else
+                                            {
+                                                syslog(LOG_ERR, "Failed to open directory for r3N4mE files");
+                                                exit(EXIT_FAILURE);
+                                            }
+                                // Hapus file dengan nama yang mengandung "d3Let3"
+                                pid_t remove_child_pid = fork();
+                                if (remove_child_pid == 0)
+                                {
+                                    DIR *dir;
+                                    struct dirent *ent;
+                                    if ((dir = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                                    {
+                                        while ((ent = readdir(dir)) != NULL)
+                                        {
+                                            char *filename = ent->d_name;
+                                            if (strstr(filename, "d3Let3") != NULL)
+                                            {
+                                                char file_path[512];
+                                                snprintf(file_path, sizeof(file_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/%s", ent->d_name);
+                                                remove(file_path);
+                                                logEvent("ludwigd", filename, "Successfully deleted");
+                                            }
+                                        }
+                                        closedir(dir);
+                                    }
+                                    else
+                                    {
+                                        syslog(LOG_ERR, "Failed to open directory for file removal");
+                                        exit(EXIT_FAILURE);
+                                    }
+                                    exit(EXIT_SUCCESS);
+                                }
+                                else if (remove_child_pid < 0)
+                                {
+                                    syslog(LOG_ERR, "Failed to fork child process for file removal");
+                                }
+                                else
+                                {
+                                    int remove_status;
+                                    waitpid(remove_child_pid, &remove_status, 0);
+
+                                    if (WIFEXITED(remove_status) && WEXITSTATUS(remove_status) == 0)
+                                    {
+                                        syslog(LOG_INFO, "Files containing 'd3Let3' removed successfully");
+                                    }
+                                    else
+                                    {
+                                        syslog(LOG_ERR, "Failed to remove files containing 'd3Let3'");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                else if (mode == 1)
+                {
+                    // Create backup directory if not exists
+                    createBackupDirectory();
+                    // Backup mode: Move files with code m0V3 to "backup" folder
+                    DIR *dir;
+                    struct dirent *ent;
+                    if ((dir = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                    {
+                        while ((ent = readdir(dir)) != NULL)
+                        {
+                            if (strstr(ent->d_name, "m0V3") != NULL)
+                            {
+                                char src_path[512];
+                                char dest_path[512];
+                                snprintf(src_path, sizeof(src_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/%s", ent->d_name);
+                                snprintf(dest_path, sizeof(dest_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup/%s", ent->d_name);
+                                moveFile(src_path, dest_path);
+                                logEvent("ludwigd", ent->d_name, "Successfully moved to backup.");
+                            }
+                        }
+                        closedir(dir);
+                    }
+                    else
+                    {
+                        syslog(LOG_ERR, "Failed to open directory for backup");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                else if (mode == 2)
+                {
+                    // Restore mode: Move files with code m0V3 from "backup" folder back to library folder
+                    DIR *dir;
+                    struct dirent *ent;
+                    if ((dir = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup/")) != NULL)
+                    {
+                        while ((ent = readdir(dir)) != NULL)
+                        {
+                            if (strstr(ent->d_name, "m0V3") != NULL)
+                            {
+                                char src_path[512];
+                                char dest_path[512];
+                                snprintf(src_path, sizeof(src_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup/%s", ent->d_name);
+                                snprintf(dest_path, sizeof(dest_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/%s", ent->d_name);
+                                moveFile(src_path, dest_path);
+                                logEvent("ludwigd", ent->d_name, "Successfully restored from backup.");
+                            }
+                        }
+                        closedir(dir);
+                    }
+                    else
+                    {
+                        syslog(LOG_ERR, "Failed to open directory for restore");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                sleep(30);
+            }
+            printf("Program terminated.\n");
+            return 0;
+        }
+
+- **Penjelasan**
+
+- Fungsi decryptFileName
+
+        void decryptFileName(char *fileName)
+        {
+            int i;
+            for (i = 0; fileName[i] != '\0'; ++i)
+            {
+                char ch = fileName[i];
+                if (ch >= 'A' && ch <= 'Z')
+                {
+                    fileName[i] = ((ch - 'A' + 7) % 26) + 'A';
+                }
+                else if (ch >= 'a' && ch <= 'z')
+                {
+                    fileName[i] = ((ch - 'a' + 7) % 26) + 'a';
+                }
+            }
+        }
+
+Fungsi `decryptFileName` bertanggung jawab untuk mendekripsi nama file dengan menggunakan algoritma Caesar cipher. Caesar cipher adalah metode enkripsi sederhana yang menggeser setiap karakter dalam teks sejauh sejumlah langkah tertentu dalam abjad. Fungsi ini menerima parameter `fileName`, yang merupakan string yang akan didekripsi. Dalam loop `for`, setiap karakter dalam `fileName` diperiksa satu per satu. Jika karakter adalah huruf kapital (`A` sampai `Z`), maka karakter tersebut didekripsi dengan menggeser mundur 7 langkah dalam abjad. Hasilnya akan tetap dalam rentang huruf kapital. Jika karakter adalah huruf kecil (`a` sampai `z`), maka karakter tersebut didekripsi dengan menggeser mundur 7 langkah dalam abjad. Hasilnya akan tetap dalam rentang huruf kecil.
+
+- Fungsi moveFile
+
+        void moveFile(const char *src, const char *dest)
+        {
+            // Check if source file exists
+            if (access(src, F_OK) != -1)
+            {
+                // Perform move operation
+                if (rename(src, dest) != 0)
+                {
+                    perror("Error moving file");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+`void moveFile(const char *src, const char *dest)`: Deklarasi fungsi `moveFile` yang menerima dua parameter, yaitu `src` (lokasi file sumber) dan `dest` (lokasi tujuan).
+
+`if (access(src, F_OK) != -1)`: Periksa apakah file sumber (`src`) ada dengan menggunakan fungsi `access`. Fungsi ini mengembalikan `-1` jika file tidak ada dan `0` jika ada.
+
+`if (rename(src, dest) != 0)`: Jika file sumber ada, maka coba untuk memindahkan file menggunakan fungsi `rename`. Fungsi ini akan mengembalikan `0` jika pemindahan berhasil.
+
+`perror("Error moving file");`: Jika pemindahan gagal, cetak pesan kesalahan yang dihasilkan oleh sistem menggunakan `perror`.
+
+`exit(EXIT_FAILURE);`: Keluar dari program dengan kode kesalahan (`EXIT_FAILURE`).                                 
+
+- Fungsi createBackupDirectory
+
+        void createBackupDirectory()
+        {
+            struct stat st = {0};
+            if (stat("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup", &st) == -1)
+            {
+                if (mkdir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup", 0700) == -1)
+                {
+                    perror("Error creating backup directory");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+`void createBackupDirectory()`: Deklarasi fungsi `createBackupDirectory` tanpa parameter.
+
+`struct stat st = {0};`: Deklarasi struktur `st` dari tipe `struct stat` yang digunakan untuk menyimpan informasi tentang direktori.
+
+`if (stat("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup", &st) == -1)`: Memeriksa apakah direktori backup sudah ada dengan menggunakan fungsi `stat`. Fungsi ini mengembalikan `-1` jika direktori tidak ada.
+
+`if (mkdir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup", 0700) == -1)`: Jika direktori backup belum ada, maka buat direktori baru dengan menggunakan fungsi `mkdir`. Mode akses `0700` digunakan untuk memberikan hak akses penuh kepada pemilik direktori.
+
+`perror("Error creating backup directory");`: Jika pembuatan direktori gagal, cetak pesan kesalahan yang dihasilkan oleh sistem menggunakan `perror`.
+
+`exit(EXIT_FAILURE);`: Keluar dari program dengan kode kesalahan (`EXIT_FAILURE`).
+
+- Fungsi signalHandler
+
+        void signalHandler(int signum)
+        {
+            if (signum == SIGRTMIN)
+            {
+                mode = 0;
+                // Set mode to default
+            }
+            else if (signum == SIGUSR1)
+            {
+                mode = 1;
+                // Set mode to backup
+            }
+            else if (signum == SIGUSR2)
+            {
+                mode = 2;
+                // Set mode to restore
+            }
+            else if (signum == SIGTERM || signum == SIGINT)
+            {
+                // SIGTERM or SIGINT received, stop program execution
+                running = 0;
+            }
+        }
+
+`void signalHandler(int signum)`: Deklarasi fungsi `signalHandler` dengan satu parameter, yaitu `signum` yang menunjukkan nomor sinyal yang diterima.
+
+`if (signum == SIGRTMIN)`: Periksa apakah sinyal yang diterima adalah `SIGRTMIN` (Real-time signal minimum).
+
+`mode = 0;`: Jika sinyal adalah `SIGRTMIN`, atur mode program ke mode default (0).
+else if (signum == SIGUSR1): Periksa apakah sinyal yang diterima adalah SIGUSR1 (User-defined signal 1).
+
+`mode = 1;`: Jika sinyal adalah `SIGUSR1`, atur mode program ke mode backup (1).
+
+`else if (signum == SIGUSR2)`: Periksa apakah sinyal yang diterima adalah `SIGUSR2` (User-defined signal 2).
+
+`mode = 2;`: Jika sinyal adalah `SIGUSR2`, atur mode program ke mode restore (2).
+
+`else if (signum == SIGTERM || signum == SIGINT)`: Periksa apakah sinyal yang diterima adalah `SIGTERM` (Termination signal) atau `SIGINT` (Interrupt signal).
+
+`running = 0;`: Jika sinyal adalah `SIGTERM` atau `SIGINT`, atur variabel `running` menjadi `0` untuk menghentikan eksekusi program.
+
+- Fungsi logEvent
+
+        void logEvent(const char *user, const char *file, const char *action)
+        {
+            // Buka file log untuk ditulis (mode "a" untuk menambahkan ke akhir file)
+            FILE *logfile = fopen("/home/ludwigd/SisOP/Praktikum2/nomor2/history.log", "a");
+            if (logfile == NULL)
+            {
+                // Jika gagal membuka file log, tampilkan pesan kesalahan dan keluar
+                perror("Failed to open log file");
+                exit(EXIT_FAILURE);
+            }
+
+            // Dapatkan waktu saat ini
+            time_t now;
+            time(&now);
+            struct tm *timeinfo = localtime(&now);
+
+            // Buat string waktu dalam format [HH:MM:SS]
+            char time_str[9];
+            strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);
+
+            // Tulis pesan log ke file
+            fprintf(logfile, "[%s][%s] - %s - %s\n", user, time_str, file, action);
+
+            // Tutup file log
+            fclose(logfile);
+        }
+
+`void logEvent(const char *user, const char *file, const char *action)`: Deklarasi fungsi `logEvent` dengan tiga parameter, yaitu `user` (nama pengguna), `file` (nama file), dan `action` (tindakan yang dilakukan).
+
+`FILE *logfile = fopen("/home/ludwigd/SisOP/Praktikum2/nomor2/history.log", "a");`: Membuka file log untuk ditulis dengan mode "a" (append), yang berarti menambahkan teks baru ke akhir file.
+
+`if (logfile == NULL)`: Memeriksa apakah file log berhasil dibuka.
+
+`perror("Failed to open log file");`: Jika file log gagal dibuka, cetak pesan kesalahan yang dihasilkan oleh sistem menggunakan `perror`.
+
+`exit(EXIT_FAILURE);`: Keluar dari program dengan kode kesalahan (`EXIT_FAILURE`).
+
+`time_t now;`: Deklarasi variabel `now` dari tipe `time_t` untuk menyimpan waktu saat ini.
+
+`time(&now);`: Mendapatkan waktu saat ini dan menyimpannya ke dalam variabel `now`.
+
+`struct tm *timeinfo = localtime(&now);`: Mengonversi waktu dalam bentuk `time_t` ke dalam struktur `tm` menggunakan fungsi `localtime`, yang menyediakan informasi waktu lokal.
+
+`char time_str[9];`: Deklarasi array `time_str` untuk menyimpan string waktu dengan panjang 9 karakter.
+
+`strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);`: Mengonversi waktu ke dalam format string dengan format [HH:MM:SS] menggunakan fungsi `strftime`.
+
+`fprintf(logfile, "[%s][%s] - %s - %s\n", user, time_str, file, action);`: Menulis pesan log ke file menggunakan fungsi `fprintf`, dengan format [user][waktu] - file - action.
+
+`fclose(logfile);`: Menutup file log setelah selesai menulis pesan log.
+
+- Fungsi usage
+
+        void usage()
+        {
+            printf("Usage: ./management [-m mode]\n");
+            printf("Modes:\n");
+            printf("  default : Run in default mode\n");
+            printf("  backup  : Run in backup mode\n");
+            printf("  restore : Run in restore mode\n");
+        }
+
+`void usage()`: Deklarasi fungsi `usage` tanpa parameter.
+
+`printf("Usage: ./management [-m mode]\n");`: Menampilkan pesan untuk memberikan penggunaan program kepada pengguna. Pesan ini menjelaskan bagaimana cara menggunakan program, khususnya argumen baris perintah `-m`.
+
+`printf("Modes:\n");`: Menampilkan pesan untuk memberikan informasi tentang mode-mode yang dapat digunakan dalam program.
+
+`printf(" default : Run in default mode\n");`: Menampilkan pesan yang menjelaskan bahwa mode default adalah mode di mana program berjalan tanpa argumen baris perintah.
+
+`printf(" backup : Run in backup mode\n");`: Menampilkan pesan yang menjelaskan bahwa mode backup adalah mode di mana program berjalan dengan argumen baris perintah `-m backup`.
+
+`printf(" restore : Run in restore mode\n");`: Menampilkan pesan yang menjelaskan bahwa mode restore adalah mode di mana program berjalan dengan argumen baris perintah `-m restore`.
+
+- Fungsi main
+
+        int main(int argc, char *argv[]) {
+            // Signal handling
+            signal(SIGRTMIN, signalHandler);
+            signal(SIGUSR1, signalHandler);
+            signal(SIGUSR2, signalHandler);
+            signal(SIGTERM, signalHandler); // Handle SIGTERM (Termination signal)
+            signal(SIGINT, signalHandler);  // Handle SIGINT (Interrupt signal)
+
+            pid_t pid, sid;        // Variabel untuk menyimpan PID
+
+            pid = fork();     // Menyimpan PID dari Child Process
+
+            /* Keluar saat fork gagal
+            * (nilai variabel pid < 0) */
+            if (pid < 0) {
+                exit(EXIT_FAILURE);
+            }
+
+            /* Keluar saat fork berhasil
+            * (nilai variabel pid adalah PID dari child process) */
+            if (pid > 0) {
+                exit(EXIT_SUCCESS);
+            }
+
+            umask(0);
+
+            sid = setsid();
+            if (sid < 0) {
+                exit(EXIT_FAILURE);
+            }
+
+            if ((chdir("/")) < 0) {
+                exit(EXIT_FAILURE);
+            }
+
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
+            close(STDERR_FILENO);
+
+**Signal Handling**: Pada bagian ini, signal handling ditetapkan untuk menangani beberapa jenis sinyal, yaitu `SIGRTMIN`, `SIGUSR1`, `SIGUSR2`, `SIGTERM`, dan `SIGINT`. Ketika sinyal-sinyal ini diterima, fungsi `signalHandler` akan dipanggil untuk menangani sinyal tersebut.
+
+**Forking Process**: Program melakukan fork untuk menciptakan child process. Fork menghasilkan dua proses yang identik, kecuali pada nilai pengembalian. Child process akan memiliki nilai pengembalian 0, sementara parent process akan memiliki nilai pengembalian PID dari child process. Fork digunakan untuk membuat daemon process, yang berjalan di background.
+
+**Exit on Fork Failure**: Jika fork gagal (nilai pid kurang dari 0), program akan keluar dengan kode kesalahan menggunakan `exit(EXIT_FAILURE)`.
+
+**Exit on Parent Process**: Jika fork berhasil dan program berjalan di parent process (nilai pid lebih dari 0), parent process akan langsung keluar menggunakan `exit(EXIT_SUCCESS)`. Ini dilakukan agar parent process segera menyelesaikan eksekusi dan mengizinkan child process untuk menjadi daemon.
+
+**Setting Umask**: Umask diatur ke nilai 0 untuk memastikan bahwa file yang dibuat oleh daemon memiliki izin penuh.
+
+**Setsid**: Child process membuat sesi baru menggunakan `setsid()`. Ini memisahkan proses dari terminal dan menghindari kemungkinan terminal mengirim sinyal hangup (SIGHUP) ke proses jika terminal ditutup.
+
+**Change Directory**: Child process berpindah direktori kerja ke root direktori (/) menggunakan `chdir("/")`. Ini dilakukan untuk memastikan bahwa daemon tidak bergantung pada direktori kerja yang spesifik.
+
+**Close Standard File Descriptors**: Child process menutup file descriptor standar (stdin, stdout, stderr) menggunakan `close(STDIN_FILENO)`, `close(STDOUT_FILENO)`, dan `close(STDERR_FILENO)`. Ini dilakukan untuk memastikan bahwa daemon tidak memiliki koneksi dengan terminal atau output yang terkait dengannya.
+
+    // Check if mode is default (no command line arguments)
+    if (argc == 1)
+    {
+        mode = 0;
+    }
+    else if (argc == 2 && strcmp(argv[1], "-m") == 0)
+    {
+        // Mode specified in command line argument
+        // Set mode accordingly
+        if (strcmp(argv[2], "default") == 0)
+        {
+            mode = 0;
+        }
+        else if (strcmp(argv[2], "backup") == 0)
+        {
+            mode = 1;
+        }
+        else if (strcmp(argv[2], "restore") == 0)
+        {
+            mode = 2;
+        }
+        else
+        {
+            printf("Invalid mode specified\n");
+            usage();
+            exit(EXIT_FAILURE);
+        }
+    }
+    else
+    {
+        printf("Invalid arguments\n");
+        usage();
+        exit(EXIT_FAILURE);
+    }
+
+**Check if mode is default**: Program pertama-tama memeriksa apakah tidak ada argumen baris perintah yang diberikan (`argc == 1`). Jika ini benar, maka mode program diatur ke mode default (`mode = 0`).
+
+**Check if mode is specified**: Jika jumlah argumen baris perintah adalah 2 dan argumen pertama adalah `-m`, maka program akan memeriksa argumen kedua (`argv[2]`) untuk menentukan mode yang diinginkan.
+
+a. Jika argumen kedua adalah `"default"`, maka mode program diatur ke mode `default (mode = 0)`.
+
+b. Jika argumen kedua adalah `"backup"`, maka mode program diatur ke mode `backup (mode = 1)`.
+
+c. Jika argumen kedua adalah `"restore"`, maka mode program diatur ke mode restore `(mode = 2)`.
+
+**Invalid Mode or Arguments**: Jika argumen baris perintah tidak memenuhi syarat di atas, program akan mencetak pesan kesalahan yang menyatakan bahwa mode yang ditentukan tidak valid. Selanjutnya, program akan menampilkan pesan penggunaan menggunakan fungsi `usage()`, dan keluar dengan kode kesalahan menggunakan `exit(EXIT_FAILURE)`.
+
+    while (1)
+        {
+            if (mode == 0)
+            {
+                pid_t child_pid = fork(); // Fork untuk menjalankan child process
+
+                if (child_pid == 0)
+                { // Child Process
+                char *download_args[] = {"wget", "--quiet", "--no-check-certificate", "https://docs.google.com/uc?export=download&id=1rUIZmp10lXLtCIH3LAZJzRPeRks3Crup", "-O", "/home/ludwigd/SisOP/Praktikum2/nomor2/library.zip", NULL};
+                execvp("wget", download_args); // Eksekusi command wget
+                exit(EXIT_SUCCESS); // Keluar dari child process
+                }
+                else if
+                (child_pid < 0) { // Fork gagal
+                syslog(LOG_ERR, "Failed to fork child process for download");
+                }
+
+**While Loop**: Loop ini akan berjalan terus-menerus selama nilai ekspresi `1` benar, yang berarti selamanya.
+
+**Check Mode**: Program memeriksa nilai variabel `mode` untuk menentukan mode kerja yang sedang berlangsung. Jika mode adalah `0` (mode default), maka program akan melakukan pengunduhan file.
+
+**Fork Child Process**: Program melakukan fork untuk membuat child process. Child process akan bertanggung jawab untuk menjalankan perintah unduh.
+
+**Child Process**: Bagian ini adalah bagian yang dijalankan oleh child process. Child process menggunakan `execvp()` untuk menjalankan perintah unduh dengan `wget` menggunakan argumen yang telah ditetapkan sebelumnya. Jika `execvp()` berhasil, child process akan keluar dengan `exit(EXIT_SUCCESS)`. Hal ini dilakukan agar child process tidak melanjutkan eksekusi program utama.
+
+**Fork Failure Handling**: Jika proses fork gagal (nilai pid kurang dari 0), program akan mencatat pesan kesalahan menggunakan `syslog()` dengan level `LOG_ERR`.
+
+                else
+                { // Parent Process
+                    int download_status;
+                    waitpid(child_pid, &download_status, 0); // Menunggu child process selesai
+                    if (WIFEXITED(download_status) && WEXITSTATUS(download_status) == 0)
+                    {
+                        syslog(LOG_INFO, "File downloaded successfully");
+                    }
+                    else
+                    {
+                        syslog(LOG_ERR, "Failed to download file");
+                    }
+
+                    // Unzip file
+                    pid_t unzip_child_pid = fork(); // Fork untuk menjalankan child process untuk unzip
+
+                    if (unzip_child_pid == 0)
+                    { // Child Process
+                        char *unzip_args[] = {"unzip", "-q", "/home/ludwigd/SisOP/Praktikum2/nomor2/library.zip", "-d", "/home/ludwigd/SisOP/Praktikum2/nomor2/", NULL};
+                        execvp("unzip", unzip_args); // Eksekusi command unzip
+                        exit(EXIT_SUCCESS); // Keluar dari child process
+                    }
+                    else if (unzip_child_pid < 0)
+                    { // Fork gagal
+                        syslog(LOG_ERR, "Failed to fork child process for unzip");
+                    }
+
+**Parent Process**: Program memasuki blok ini sebagai parent process setelah child process untuk unduhan selesai dieksekusi.
+
+**Wait for Child Process**: Program menggunakan fungsi `waitpid()` untuk menunggu child process selesai. Ini memungkinkan program untuk menunggu proses unduhan selesai sebelum melanjutkan ke langkah berikutnya. Fungsi `waitpid()` akan memblokir parent process hingga child process selesai dieksekusi.
+
+**Check Child Process Status**: Setelah child process selesai dieksekusi, program memeriksa status keluaran (exit status) dari child process menggunakan makro `WIFEXITED()` dan `WEXITSTATUS()`. Jika child process keluar secara normal (exit), dan status keluarannya adalah 0, maka program mencatat pesan informasi bahwa unduhan berhasil. Jika tidak, program mencatat pesan kesalahan bahwa unduhan gagal.
+
+**Fork untuk Proses Unzip**: Setelah proses unduhan selesai, program melakukan fork untuk membuat child process yang bertanggung jawab untuk mengekstrak (unzip) file yang telah diunduh.
+
+**Child Process untuk Unzip**: Bagian ini adalah bagian yang dijalankan oleh child process untuk mengekstrak file. Child process menggunakan `execvp()` untuk menjalankan perintah unzip dengan argumen yang telah ditetapkan sebelumnya. Jika `execvp()` berhasil, child process akan keluar dengan `exit(EXIT_SUCCESS)`. Hal ini dilakukan agar child process tidak melanjutkan eksekusi program utama.
+
+**Fork Failure Handling**: Jika proses fork gagal (nilai pid kurang dari 0), program akan mencatat pesan kesalahan menggunakan `syslog()` dengan level `LOG_ERR`.
+
+                    else
+                    { // Parent Process
+                        int unzip_status;
+                        waitpid(unzip_child_pid, &unzip_status, 0); // Menunggu child process selesai
+
+                        if (WIFEXITED(unzip_status) && WEXITSTATUS(unzip_status) == 0)
+                        {
+                        syslog(LOG_INFO, "File unzipped successfully");
+                        }
+                        else
+                        {
+                        syslog(LOG_ERR, "Failed to unzip file");
+                        }
+                        // Decrypt file names
+                        pid_t decrypt_child_pid = fork(); // Fork untuk menjalankan child process untuk dekripsi nama file
+
+**Parent Process**: Program memasuki blok ini sebagai parent process setelah child process untuk mengekstrak selesai dieksekusi.
+
+**Wait for Child Process**: Program menggunakan fungsi `waitpid()` untuk menunggu child process selesai. Ini memungkinkan program untuk menunggu proses mengekstrak selesai sebelum melanjutkan ke langkah berikutnya. Fungsi `waitpid()` akan memblokir parent process hingga child process selesai dieksekusi.
+
+**Check Child Process Status**: Setelah child process selesai dieksekusi, program memeriksa status keluaran (exit status) dari child process menggunakan makro `WIFEXITED()` dan `WEXITSTATUS()`. Jika child process keluar secara normal (exit), dan status keluarannya adalah 0, maka program mencatat pesan informasi bahwa file berhasil diekstrak. Jika tidak, program mencatat pesan kesalahan bahwa proses unzip gagal.
+
+**Fork untuk Proses Dekripsi Nama File**: Setelah proses unzip selesai, program melakukan fork untuk membuat child process yang bertanggung jawab untuk mendekripsi nama file.
+
+                        if (decrypt_child_pid == 0)
+                        { // Child Process
+                        // Mendapatkan daftar file di direktori
+                        DIR *dir;
+                        struct dirent *ent;
+                        if ((dir = opendir ("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                        {
+                            while ((ent = readdir(dir)) != NULL)
+                            {
+                            // Hanya dekripsi nama file ke-7 hingga terakhir
+                            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+                            {
+                                continue;
+                            }
+                            if (isdigit(ent->d_name[0]))
+                            {
+                                continue;
+                            }
+                            char old_name[256];
+                            char new_name[256];
+
+                            strcpy(old_name, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/");
+                            strcat(old_name, ent->d_name);
+
+                            decryptFileName(ent->d_name);
+
+                            strcpy(new_name, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/");
+                            strcat(new_name, ent->d_name);
+
+                            rename(old_name, new_name);
+                            }
+                            closedir (dir);
+                        }
+
+**Pengecekan Child Process**: Bagian ini hanya akan dieksekusi oleh child process, karena pernyataan `decrypt_child_pid == 0` mengevaluasi ke benar hanya jika child process sedang berjalan.
+
+**Mendapatkan Daftar File di Direktori**: Program membuka direktori yang ditentukan dengan menggunakan fungsi `opendir()` dan menyimpan struktur direktori dalam variabel `dir`. Struktur dirent akan digunakan untuk membaca setiap entri (file) dalam direktori.
+
+**Loop untuk Dekripsi Nama File**: Program melakukan loop menggunakan `readdir()` untuk membaca setiap entri dalam direktori. Hanya file-file yang diproses dalam loop ini, karena direktori "." dan ".." dilewati dengan menggunakan fungsi `strcmp()` untuk memeriksa nama file.
+
+**Pengecekan untuk Dekripsi**: Setelah file dipilih, program memeriksa apakah nama file dimulai dengan karakter numerik atau tidak. Jika iya, file tersebut dilewati.
+
+**Pengolahan Nama File**: Setelah file dipilih untuk diproses, program membuat string yang berisi path lengkap dari file lama (`old_name`) dan path lengkap baru (`new_name`). Nama file dienkripsi menggunakan fungsi `decryptFileName()`. Setelah itu, nama file yang sudah dienkripsi digunakan untuk mengubah nama file lama menjadi nama file baru menggunakan fungsi `rename()`.
+
+**Menutup Direktori**: Setelah semua file dalam direktori diproses, program menutup direktori menggunakan fungsi `closedir()` untuk membersihkan sumber daya yang digunakan.
+
+                        else
+                        {
+                            syslog(LOG_ERR, "Failed to open directory");
+                            exit(EXIT_FAILURE);
+                        }
+                        exit(EXIT_SUCCESS); // Keluar dari child process
+                        }
+
+                        else if (decrypt_child_pid < 0)
+                        { // Fork gagal
+                        syslog(LOG_ERR, "Failed to fork child process for decrypting file names");
+                        }
+                        else
+                        { // Parent Process
+                            int decrypt_status;
+                            waitpid(decrypt_child_pid, &decrypt_status, 0); // Menunggu child process selesai
+
+                            if (WIFEXITED(decrypt_status) && WEXITSTATUS(decrypt_status) == 0)
+                            {
+                                syslog(LOG_INFO, "File names decrypted successfully");
+                            }
+                            else
+                            {
+                                syslog(LOG_ERR, "Failed to decrypt file names");
+                            }
+
+**Kode untuk Child Process yang Gagal Membuka Direktori**: Jika child process tidak dapat membuka direktori yang ditentukan, program mencatat pesan kesalahan menggunakan fungsi `syslog()` dengan level `LOG_ERR` dan keluar dari child process dengan status keluaran `EXIT_FAILURE`. Ini menandakan bahwa proses pendekripsi gagal dan program akan berhenti.
+
+**Keluar dari Child Process Setelah Selesai**: Jika child process berhasil membuka dan memproses direktori, program keluar dari child process dengan status keluaran `EXIT_SUCCESS`. Ini menandakan bahwa proses pendekripsi selesai tanpa masalah.
+
+**Pengecekan Fork Failure**: Jika gagal melakukan fork untuk child process pendekripsi, program mencatat pesan kesalahan menggunakan `syslog()` dan keluar dari child process dengan status keluaran `EXIT_FAILURE`.
+
+**Parent Process**: Bagian ini akan dieksekusi oleh parent process setelah child process pendekripsi selesai dieksekusi.
+
+**Menunggu Child Process Selesai**: Parent process menunggu child process pendekripsi selesai menggunakan fungsi `waitpid()`. Ini memungkinkan parent process untuk menunggu hasil eksekusi dari child process sebelum melanjutkan ke langkah berikutnya.
+
+**Pengecekan Status Keluaran Child Process**: Setelah child process selesai dieksekusi, parent process memeriksa status keluaran child process menggunakan makro `WIFEXITED()` dan `WEXITSTATUS()`. Jika child process keluar secara normal dan status keluarannya adalah 0, program mencatat pesan informasi bahwa nama file telah berhasil dideskripsi. Jika tidak, program mencatat pesan kesalahan bahwa proses pendekripsi gagal.
+
+                            // Handle file dengan nama yang memuat kode r3N4mE
+                            DIR *dir_r3N4mE;
+                            struct dirent *ent_r3N4mE;
+                            if ((dir_r3N4mE = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                            {
+                                while ((ent_r3N4mE = readdir(dir_r3N4mE)) != NULL)
+                                {
+                                    // Cek hanya file dengan kode r3N4mE
+                                    char *filename = ent_r3N4mE->d_name;
+                                    if (strstr(filename, "r3N4mE") != NULL)
+                                    {
+                                        char old_path[256];
+                                        char new_path[256];
+                                        strcpy(old_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/");
+                                        strcat(old_path, ent_r3N4mE->d_name);
+
+                                        char *ext = strrchr(ent_r3N4mE->d_name, '.'); // Mendapatkan ekstensi file
+                                        if (ext == NULL)
+                                        {
+                                            // Jika tidak ada ekstensi, rename menjadi "renamed.file"
+                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/renamed.file");
+                                        }
+                                        else if (strcmp(ext, ".ts") == 0)
+                                        {
+                                            // Jika ekstensi adalah ".ts", rename menjadi "helper.ts"
+                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/helper.ts");
+                                        }
+                                        else if (strcmp(ext, ".py") == 0)
+                                        {
+                                            // Jika ekstensi adalah ".py", rename menjadi "calculator.py"
+                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/calculator.py");
+                                        }
+                                        else if (strcmp(ext, ".go") == 0)
+                                        {
+                                            // Jika ekstensi adalah ".go", rename menjadi "server.go"
+                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/server.go");
+                                        }
+                                        else
+                                        {
+                                            // Jika ekstensi tidak dikenali, rename menjadi "renamed.file"
+                                            strcpy(new_path, "/home/ludwigd/SisOP/Praktikum2/nomor2/library/renamed.file");
+                                        }
+
+                                        // Rename file
+                                        rename(old_path, new_path);
+                                        logEvent("ludwigd", filename, "Successfully renamed");
+                                    }
+                                }
+                                closedir(dir_r3N4mE);
+                            }
+
+**Membuka Direktori**: Program membuka direktori yang berisi file yang akan diproses. Jika direktori berhasil dibuka, maka program akan melanjutkan proses.
+
+**Iterasi Melalui Setiap File dalam Direktori**: Program melakukan iterasi melalui setiap file yang ada dalam direktori yang telah dibuka.
+
+**Pengecekan Kode "r3N4mE" dalam Nama File**: Setiap nama file yang diiterasi diperiksa untuk memastikan apakah mereka mengandung kode "r3N4mE" di dalamnya. Jika iya, maka file tersebut akan diproses.
+
+**Penentuan Ekstensi File dan Penamaan Baru**: Program menentukan ekstensi file dengan menggunakan fungsi `strrchr()` untuk mencari titik terakhir dalam nama file. Kemudian, berdasarkan ekstensi file tersebut, program menentukan nama baru untuk file tersebut.
+
+**Pengubahan Nama File**: Setelah menentukan nama baru untuk file, program menggunakan fungsi `rename()` untuk mengubah nama file yang lama menjadi nama baru yang telah ditentukan.
+
+**Logging Event**: Setelah pengubahan nama file, program memanggil fungsi `logEvent()` untuk mencatat kegiatan yang telah dilakukan dalam log. Ini memberikan informasi bahwa file telah berhasil direname.
+
+**Penutupan Direktori**: Setelah selesai mengiterasi semua file dalam direktori, program menutup direktori untuk membersihkan sumber daya yang digunakan.
+
+                            else
+                            {
+                                syslog(LOG_ERR, "Failed to open directory for r3N4mE files");
+                                exit(EXIT_FAILURE);
+                            }
+                            // Hapus file dengan nama yang mengandung "d3Let3"
+                            pid_t remove_child_pid = fork();
+                            if (remove_child_pid == 0)
+                            {
+                                DIR *dir;
+                                struct dirent *ent;
+                                if ((dir = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                                {
+                                    while ((ent = readdir(dir)) != NULL)
+                                    {
+                                        char *filename = ent->d_name;
+                                        if (strstr(filename, "d3Let3") != NULL)
+                                        {
+                                            char file_path[512];
+                                            snprintf(file_path, sizeof(file_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/%s", ent->d_name);
+                                            remove(file_path);
+                                            logEvent("ludwigd", filename, "Successfully deleted");
+                                        }
+                                    }
+                                    closedir(dir);
+                                }
+                                else
+                                {
+                                    syslog(LOG_ERR, "Failed to open directory for file removal");
+                                    exit(EXIT_FAILURE);
+                                }
+                                exit(EXIT_SUCCESS);
+                            }
+
+**Fork Process**: Program melakukan fork untuk membuat child process yang akan melakukan operasi penghapusan file.
+
+**Child Process**: Child process melakukan langkah-langkah berikut:
+
+- Membuka direktori yang berisi file yang akan dihapus.
+
+- Melakukan iterasi melalui setiap file dalam direktori.
+
+- Setiap nama file yang diiterasi diperiksa untuk memastikan apakah mereka mengandung string "d3Let3". Jika iya, maka file tersebut akan dihapus.
+
+- Setelah file dihapus, sebuah log event dicatat menggunakan fungsi `logEvent()` untuk mencatat kegiatan penghapusan file.
+
+**Penutupan Direktori**: Setelah selesai mengiterasi semua file dalam direktori, program menutup direktori untuk membersihkan sumber daya yang digunakan.
+
+**Penanganan Kesalahan**: Jika ada kesalahan dalam membuka atau mengakses direktori, program akan mencatat kesalahan tersebut dalam log dan keluar dari child process dengan status kegagalan.
+
+**Exit Child Process**: Setelah menyelesaikan tugasnya, child process keluar dengan status keberhasilan.
+
+                            else if (remove_child_pid < 0)
+                            {
+                                syslog(LOG_ERR, "Failed to fork child process for file removal");
+                            }
+                            else
+                            {
+                                int remove_status;
+                                waitpid(remove_child_pid, &remove_status, 0);
+
+                                if (WIFEXITED(remove_status) && WEXITSTATUS(remove_status) == 0)
+                                {
+                                    syslog(LOG_INFO, "Files containing 'd3Let3' removed successfully");
+                                }
+                                else
+                                {
+                                    syslog(LOG_ERR, "Failed to remove files containing 'd3Let3'");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+**Penanganan Child Process Failure**: Jika fork gagal untuk membuat child process yang bertanggung jawab untuk menghapus file, maka akan dicatat pesan kesalahan dalam log.
+
+**Penanganan Parent Process**: Jika fork berhasil, parent process akan menunggu child process selesai dengan menggunakan `waitpid()`. Setelah child process selesai, parent process akan memeriksa status keluaran dari child process.
+
+- Jika child process selesai dengan status keluaran yang menandakan keberhasilan (`exit status 0`), maka akan dicatat dalam log bahwa file-file yang mengandung string "`d3Let3`" berhasil dihapus.
+
+- Jika child process selesai dengan status keluaran yang menandakan kegagalan (`exit status bukan 0`), maka akan dicatat dalam log bahwa proses penghapusan file yang mengandung string "`d3Let3`" gagal.
+
+.
+
+            else if (mode == 1)
+            {
+                // Create backup directory if not exists
+                createBackupDirectory();
+                // Backup mode: Move files with code m0V3 to "backup" folder
+                DIR *dir;
+                struct dirent *ent;
+                if ((dir = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/")) != NULL)
+                {
+                    while ((ent = readdir(dir)) != NULL)
+                    {
+                        if (strstr(ent->d_name, "m0V3") != NULL)
+                        {
+                            char src_path[512];
+                            char dest_path[512];
+                            snprintf(src_path, sizeof(src_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/%s", ent->d_name);
+                            snprintf(dest_path, sizeof(dest_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup/%s", ent->d_name);
+                            moveFile(src_path, dest_path);
+                            logEvent("ludwigd", ent->d_name, "Successfully moved to backup.");
+                        }
+                    }
+                    closedir(dir);
+                }
+                else
+                {
+                    syslog(LOG_ERR, "Failed to open directory for backup");
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+**Pembuatan Direktori Cadangan**: Fungsi `createBackupDirectory()` dipanggil untuk memastikan bahwa direktori cadangan sudah dibuat sebelum memulai proses backup.
+
+**Pencarian File**: Program membuka direktori yang berisi file-file untuk dicadangkan. Jika direktori berhasil dibuka, program akan memproses setiap file dalam direktori tersebut.
+
+**Pemindaian File**: Setiap file dalam direktori diproses. Jika nama file mengandung string "`m0V3`", file tersebut akan dipindahkan ke dalam direktori cadangan.
+
+**Pemindahan File**: Setiap file yang memenuhi syarat dipindahkan ke direktori cadangan dengan menggunakan fungsi `moveFile()`. Selain itu, log peristiwa dicatat untuk setiap file yang berhasil dipindahkan.
+
+**Penanganan Kesalahan**: Jika program gagal membuka direktori, sebuah pesan kesalahan akan dicatat dalam log dan program akan keluar dengan status kegagalan.
+
+            else if (mode == 2)
+            {
+                // Restore mode: Move files with code m0V3 from "backup" folder back to library folder
+                DIR *dir;
+                struct dirent *ent;
+                if ((dir = opendir("/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup/")) != NULL)
+                {
+                    while ((ent = readdir(dir)) != NULL)
+                    {
+                        if (strstr(ent->d_name, "m0V3") != NULL)
+                        {
+                            char src_path[512];
+                            char dest_path[512];
+                            snprintf(src_path, sizeof(src_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/backup/%s", ent->d_name);
+                            snprintf(dest_path, sizeof(dest_path), "/home/ludwigd/SisOP/Praktikum2/nomor2/library/%s", ent->d_name);
+                            moveFile(src_path, dest_path);
+                            logEvent("ludwigd", ent->d_name, "Successfully restored from backup.");
+                        }
+                    }
+                    closedir(dir);
+                }
+                else
+                {
+                    syslog(LOG_ERR, "Failed to open directory for restore");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            sleep(30);
+        }
+        printf("Program terminated.\n");
+        return 0;
+    }
+
+**Pencarian File**: Program membuka direktori "`backup`" untuk mencari file-file yang akan dipulihkan. Jika direktori berhasil dibuka, program akan memproses setiap file dalam direktori tersebut.
+
+**Pemindaian File**: Setiap file dalam direktori "`backup`" diproses. Jika nama file mengandung string "`m0V3`", file tersebut akan dipindahkan kembali ke dalam direktori "`library`".
+
+**Pemindahan File**: Setiap file yang memenuhi syarat dipindahkan kembali ke direktori "`library`" dengan menggunakan fungsi `moveFile()`. Selain itu, log peristiwa dicatat untuk setiap file yang berhasil dipulihkan.
+
+**Penanganan Kesalahan**: Jika program gagal membuka direktori "`backup`", sebuah pesan kesalahan akan dicatat dalam log dan program akan keluar dengan status kegagalan.
+
+**Pemrosesan Berulang**: Setelah semua file yang cocok dipindahkan kembali, program akan menunggu selama 30 detik sebelum memulai pemindaian ulang. Ini memungkinkan program untuk terus berjalan secara berulang dalam mode pemulihan.
+
+**Pesan Terminasi**: Ketika program berakhir (dalam kasus tertentu, karena sinyal atau kondisi tertentu), pesan "`Program terminated.`" akan dicetak sebelum program mengembalikan nilai 0 dan berhenti.
+
+
 ### Kendala Pengerjaan Soal 2
+
+Sebelum kode dimodifikasi untuk bisa menggunakan mode dengan mengirim sinyal ke daemon seperti SIGRTMIN, SIGUSR1, dan SIGUSR2, program tersebut berhasil menggunakan mode dengan perintah `./management -m backup` dan `./management -m restore` untuk melakukan backup dan restore. 
+
+Tetapi setelah dimodifikasi agar bisa menggunakan mode dengan mengirim sinyal ke daemon, program tersebut bisa lagi untuk menggunakan mode dengan perintah `./management -m backup` dan `./management -m restore` untuk melakukan backup dan restore walaupun program bisa menggunakan mode dengan mengirim sinyal ke daemon.
+
+- **Screenshoot problem**
+
+
 ### Screenshot Hasil Pengerjaan Soal 2
 
 ## Soal 3
