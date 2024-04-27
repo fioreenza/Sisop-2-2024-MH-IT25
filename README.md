@@ -1714,6 +1714,12 @@ Tetapi setelah dimodifikasi agar bisa menggunakan mode dengan mengirim sinyal ke
 
 ### Screenshot Hasil Pengerjaan Soal 2
 
+- Jalankan program management nya
+  ![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/94b743e7-9ec7-432e-a967-2501a03d80db)
+
+  
+- 
+
 ## Soal 3
 **Wira Samudra Siregar (5027231041)**
 ### Deskripsi Soal 3
