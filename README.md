@@ -1711,14 +1711,40 @@ Tetapi setelah dimodifikasi agar bisa menggunakan mode dengan mengirim sinyal ke
 
 - **Screenshoot problem**
 
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/26653820-5923-4499-9137-a1a83e2def34)
+
+Terlihat dari gambar di atas bahwa program tidak berhasil menggunakan mode dengan perintah `-m backup` maupun `-m restore`. Tetapi program tersebut bisa menggunakan mode dengan hanya mengirim sinyal ke daemon yaitu dengan kill -SIGUSR <PID program>, kill -SIGUSR2 <PID program>, dan kill -SIGRTMIN <PID program>
+
+
+
 
 ### Screenshot Hasil Pengerjaan Soal 2
 
 - Jalankan program management nya
+  
   ![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/94b743e7-9ec7-432e-a967-2501a03d80db)
 
-  
-- 
+- Program telah berhasil mendownload, unzip, decrypt file, serta berhasil merename nama file tersebut sesuai dengan nama yang memuat kode r3N4mE, d3Let3, dan m0V3.
+
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/bd613ec6-713d-4bb0-b9b8-8756b2207fd7)
+
+- Program telah berhasil memindahkan file-file yang nama file nya mengandung kode m0V3 ke directory backup menggunakan mode dengan mengirim sinyal ke daemon yaitu kill -SIGUSR1 <PID program>
+
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/ef6433f1-fc48-414a-aac5-bebcf5c9458f)
+
+- Program telah berhasil memindahkan kembali file-file yang berada di directory backup, ke directory asalnya yaitu directory library menggunakan mode dengan mengirim sinyal ke daemon yaitu kill -SIGUSR2 <PID program>
+
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/226b8d25-9bfc-459b-82fc-bdd8ac5508b9)
+
+- Setelah menghapus file library.zip dan directory library, program tersebut berhasil mendownload, unzip, decrypt serta merename kembali file-file tersebut menggunakan mode dengan mengirim sinyal ke daemon yaitu -kill SIGRTMIN <PID program>
+
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/1a5ff558-7168-40ab-af9a-40fd750e64cb)
+
+- Berikut adalah isi dari file history.log
+
+![image](https://github.com/fioreenza/Sisop-2-2024-MH-IT25/assets/144349814/513f2872-0e8e-4bb1-b623-daa3d5cc6f2e)
+
+
 
 ## Soal 3
 **Wira Samudra Siregar (5027231041)**
